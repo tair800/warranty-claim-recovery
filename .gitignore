@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+*.pem
+keys/
+node_modules/
+.claude/
+
+# The corpus is rebuilt from a committed seed; only artifacts/ is tracked.
+data/generated/
+# Embedding model cache.
+.fastembed_cache/
