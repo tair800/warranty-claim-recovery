@@ -5,6 +5,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .env
+.env.*
+!.env.example
 *.pem
 keys/
 node_modules/

@@ -1,0 +1,482 @@
+# ENGINEERING and the PREDECLARED KILL CRITERIA are different questions, and this file keeps them
+# apart on purpose.
+#
+# The engineering lanes ask whether the software works: does it lint, does it type-check, does it
+# run against a real PostgreSQL with pgvector and a real Redis, does every guarantee still catch a
+# defect planted into it, does the image build and serve. Those must be green, and a regression in
+# any of them is a bug to fix.
+#
+# The last lane asks a different question: do ADR-001's three claims hold, graded by the thirteen
+# kill conditions that were committed before any source file existed. Its honest answer may be no.
+# Keeping it in its own lane means a disclosed failure cannot turn the whole build permanently red —
+# a red build is one nobody reads, and a real regression then hides behind the disclosure — and it
+# equally means no failing criterion can be laundered into a pass by an `xfail` or a deletion, which
+# is the one thing ADR-001 forbids outright.
+#
+# **None of these lanes is `continue-on-error`.** A lane allowed to fail silently is a lane that is
+# already failing and nobody has noticed.
+#
+# **The PostgreSQL service is `pgvector/pgvector:pg16`, never `postgres`.** Kill condition K is the
+# claim that the extension itself does the distance arithmetic. A plain image would not make that
+# claim fail — it would make it *unrunnable*, and the lane would go green while proving nothing.
+# That is strictly worse than a red lane, so the image is named here and in `docker-compose.yml` and
+# nowhere is it a variable.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so the lanes that only run on push still run in a quiet week.
+    - cron: "17 6 * * 3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Values only this job's network namespace can reach. Not secrets, not shared with anything, and
+  # not credentials for any system that exists outside the runner.
+  WCR_DATABASE_URL: postgresql+psycopg://warranty:ci_only_not_a_secret@localhost:5432/warranty_claim_recovery
+  WCR_REDIS_URL: redis://localhost:6379/0
+  WCR_EMBEDDING_CACHE: .fastembed_cache
+  WCR_ENVIRONMENT: ci
+  # CI must exercise the mutating paths. The whole durability claim is about writes — leases,
+  # approvals, submissions — and a suite run with the production default of `WCR_READ_ONLY=true`
+  # would refuse every one of them and then report that nothing failed.
+  WCR_READ_ONLY: "false"
+  # The approver token has no default so that a deployment without one can approve nothing. CI needs
+  # a value to test approval at all; this one is generated per-repository in the sense that matters,
+  # namely that it authorises nothing anywhere.
+  WCR_APPROVER_TOKEN: ci_only_not_a_secret_approver
+
+jobs:
+  fast:
+    name: engineering — lint, types, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check src tests scripts
+
+      - name: Format check
+        # `ruff format` as a check rather than as advice. A formatter that is advisory produces a
+        # repository where every diff carries unrelated reformatting, and review then stops finding
+        # the line that mattered.
+        run: uv run ruff format --check src tests scripts
+
+      - name: Types
+        run: uv run mypy --strict src
+
+      - name: The predeclaration guard
+        # `test_kill_criteria.py` was committed with zero source files present, and
+        # `test_predeclaration.py` fails the build if anything in it learns to skip or if a
+        # threshold moved. That is a property of the repository rather than of any result, it needs
+        # no infrastructure, and it belongs in the lane that is always green.
+        run: uv run pytest tests/test_predeclaration.py -q
+
+      - name: Tests that need no infrastructure
+        # Deselected by marker rather than left to skip. A test that skips when it cannot reach
+        # PostgreSQL is behaving correctly, but a lane built on that behaviour quietly stops
+        # covering anything the day a connection string changes.
+        run: uv run pytest tests -q --ignore=tests/test_kill_criteria.py -m "not infrastructure"
+
+  evidence:
+    name: engineering — postgres, pgvector, redis, corpus, artifacts, evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: warranty
+          POSTGRES_PASSWORD: ci_only_not_a_secret
+          POSTGRES_DB: warranty_claim_recovery
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U warranty -d warranty_claim_recovery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        # Load-bearing, not decorative: the case queue, its leases and the submission idempotency
+        # state. Kill condition L is about what happens when this is gone, so it has to be here to
+        # be taken away.
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Cache the embedding model
+        # Roughly 130MB of ONNX weights. Downloading them on every run would dominate the lane and
+        # would make CI depend on a model host being up, which is not a dependency this project
+        # needs. The key names the model, so changing the model invalidates the cache rather than
+        # silently reusing the previous one's weights.
+        uses: actions/cache@v4
+        with:
+          path: .fastembed_cache
+          key: fastembed-bge-small-en-v1.5-v1
+
+      - name: Migrate
+        run: uv run alembic upgrade head
+
+      - name: Generate the corpus
+        run: uv run python scripts/generate_corpus.py
+
+      - name: Prove the corpus is reproducible
+        # Not a nicety. The hold-out digest is taken over this corpus; if the generator is not
+        # byte-reproducible then the frozen split describes a corpus that no longer exists and every
+        # score graded against it is graded against nothing.
+        run: uv run python scripts/generate_corpus.py --verify-determinism
+
+      - name: Embed the clause corpus into pgvector
+        run: uv run python scripts/seed_index.py
+
+      - name: Build the evidence
+        run: uv run python scripts/build_artifacts.py
+
+      - name: The frozen hold-out still describes this corpus
+        # ADR-001 §7: the split was frozen before anything was scored, and it may never be re-drawn
+        # to improve a number. This reads the field the build just wrote rather than trusting that
+        # nobody regenerated the corpus, so a drifted split fails the engineering lane — where it is
+        # a bug — instead of only surfacing in the reported gate, where it would look like a result.
+        run: |
+          set -eu
+          python - <<'CHECK'
+          import json
+          holdout = json.load(open("artifacts/holdout.json", encoding="utf-8"))
+          assert holdout["split_unit"] == "warranty_program", holdout["split_unit"]
+          assert holdout["digest_matches_corpus"] is True, (
+              "the frozen hold-out no longer matches the corpus: either the corpus changed after "
+              "the freeze or the freeze was re-drawn. Both are recorded decisions, not build fixes."
+          )
+          assert holdout["leaked_programs"] == 0 and holdout["leaked_cases"] == 0
+          print("hold-out intact over", holdout["programs_total"], "programs")
+          CHECK
+
+      - name: Engineering suite against a real database and a real Redis
+        # Everything except the kill test, which the last lane reports separately. This is the lane
+        # that says whether the software works.
+        run: uv run pytest tests -q --ignore=tests/test_kill_criteria.py
+
+      - name: Publish the evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence
+          path: artifacts/
+          retention-days: 30
+
+  falsifiability:
+    name: engineering — planted breaches
+    # Only where it is worth the minutes, and never advisory.
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: warranty
+          POSTGRES_PASSWORD: ci_only_not_a_secret
+          POSTGRES_DB: warranty_claim_recovery
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U warranty -d warranty_claim_recovery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: .fastembed_cache
+          key: fastembed-bge-small-en-v1.5-v1
+
+      - name: Migrate, build the corpus and the evidence
+        run: |
+          uv run alembic upgrade head
+          uv run python scripts/generate_corpus.py
+          uv run python scripts/seed_index.py
+          uv run python scripts/build_artifacts.py
+
+      - name: Plant every breach and check each one is caught
+        # A breach is planted by replacing a function the running system calls, and the detector has
+        # to observe the behaviour change. CLAUDE.md §3.6: a grep over source text is not a guard,
+        # because it passes against a system that has been rewritten around it.
+        run: uv run python scripts/plant_breaches.py
+
+      - name: No planted breach survived
+        # Scoped to the paths a breach can be planted in. The step above rebuilds artifacts, whose
+        # provenance records the commit and the runner, so an unscoped diff would go red on build
+        # output and say nothing about whether a breach survived — and a check that goes red for the
+        # wrong reason is a check people mute, taking the right reason with it.
+        run: git diff --exit-code -- src tests scripts alembic
+
+  docker:
+    name: engineering — image builds, migrates and serves
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: warranty
+          POSTGRES_PASSWORD: ci_only_not_a_secret
+          POSTGRES_DB: warranty_claim_recovery
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U warranty -d warranty_claim_recovery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t warranty-claim-recovery:ci .
+
+      - name: It serves with no infrastructure at all
+        # Proves the image does not need a database to start, which is what makes the entrypoint's
+        # missing `set -e` a decision rather than an oversight: the evidence screen is artifact-
+        # backed and works without one. `WCR_SKIP_SEED` is what makes this step fast — without it
+        # the entrypoint would spend its whole connect timeout waiting for a database this step
+        # deliberately does not provide, and the step would be measuring a timeout.
+        run: |
+          set -eu
+          docker run -d --name wcr-bare -p 8001:8000 \
+            -e WCR_ENVIRONMENT=ci -e WCR_SKIP_SEED=true warranty-claim-recovery:ci
+          ok=""
+          for i in $(seq 1 30); do
+            live=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8001/livez || true)
+            if [ "$live" = "200" ]; then ok="yes"; break; fi
+            sleep 2
+          done
+          if [ -z "$ok" ]; then echo "the container never became live"; docker logs wcr-bare; exit 1; fi
+          health=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8001/healthz || true)
+          echo "/livez 200, /healthz $health"
+          # 503 is the correct answer with no database, and the reason the platform health check in
+          # render.yaml points at /livez instead. A 200 here would mean /healthz is not actually
+          # checking its dependencies, which would make it useless on the day one of them is down.
+          test "$health" = "503"
+          docker rm -f wcr-bare
+
+      - name: It migrates, indexes and serves against real pgvector and real Redis
+        # The path a deployment actually takes, from an empty database, with the `postgres://`
+        # scheme a hosting provider hands out rather than the one the code prefers — which is
+        # exactly what `normalise_database_url` exists for, so this step exercises it.
+        run: |
+          set -eu
+          docker run -d --name wcr --network host \
+            -e PORT=8000 -e WCR_ENVIRONMENT=ci \
+            -e WCR_DATABASE_URL='postgres://warranty:ci_only_not_a_secret@localhost:5432/warranty_claim_recovery' \
+            -e WCR_REDIS_URL='redis://localhost:6379/0' \
+            warranty-claim-recovery:ci
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/healthz || true)
+            if [ "$code" = "200" ]; then echo healthy; break; fi
+            sleep 2
+          done
+          docker logs wcr
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/healthz)" = "200"
+
+      - name: The screens render
+        run: |
+          set -eu
+          for path in / /evidence; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8000$path")
+            echo "$path -> $code"
+            test "$code" = "200"
+          done
+
+      # This step exists because of how the equivalent lane failed in project 7. There, one step was
+      # named "it serves" and its body only fetched pages; the deployed service then answered 502 to
+      # every real question because the container was killed loading the encoder, and the lane
+      # stayed green throughout, because nothing in it had ever asked one. A check whose name claims
+      # something it does not do is worse than no check, because it is counted.
+      - name: A case is assessed through the shipped API, and the answer is checked
+        run: |
+          set -eu
+          curl -sS --max-time 120 "http://localhost:8000/api/cases" > /tmp/cases.json
+          head -c 400 /tmp/cases.json; echo
+          python - <<'PICK' > /tmp/case_id.txt
+          import json
+          payload = json.load(open("/tmp/cases.json", encoding="utf-8"))
+          rows = payload["cases"] if isinstance(payload, dict) else payload
+          assert rows, "the image served an empty case list, so there is nothing to ask it about"
+          row = rows[0]
+          print(row.get("case_id") or row.get("claim_id"))
+          PICK
+          CASE=$(cat /tmp/case_id.txt)
+          test -n "$CASE"
+          echo "asking about $CASE"
+          curl -sS --max-time 180 "http://localhost:8000/api/cases/$CASE/assessment" > /tmp/assessment.json
+          head -c 600 /tmp/assessment.json; echo
+          python - <<'CHECK'
+          import json
+          from decimal import Decimal
+
+          assessment = json.load(open("/tmp/assessment.json", encoding="utf-8"))
+
+          def find(node, key):
+              """The endpoint may nest its decision; this check is about substance, not shape."""
+              if isinstance(node, dict):
+                  if key in node:
+                      return node[key]
+                  for value in node.values():
+                      found = find(value, key)
+                      if found is not None:
+                          return found
+              elif isinstance(node, list):
+                  for value in node:
+                      found = find(value, key)
+                      if found is not None:
+                          return found
+              return None
+
+          outcome = find(assessment, "outcome")
+          assert outcome in {
+              "RECOVERABLE", "PARTIALLY_RECOVERABLE", "NOT_RECOVERABLE", "REVIEW"
+          }, f"the gate returned {outcome!r}, which is not one of the four recovery outcomes"
+
+          amount = find(assessment, "recoverable_amount")
+          assert amount is not None, "the assessment carried no recoverable amount"
+          raw = amount["amount"] if isinstance(amount, dict) else amount
+          assert not isinstance(raw, float), (
+              "the recoverable amount was served as a JSON float. Money is Decimal in this system "
+              "and a float in a monetary path is a defect, not a formatting choice: it is how a "
+              "recovery total comes to be out by a hundredth and the claim is rejected a second time."
+          )
+          Decimal(str(raw))
+
+          requirements = find(assessment, "requirements") or []
+          assert requirements, "no requirements were assessed, so nothing was actually adjudicated"
+          for requirement in requirements:
+              if requirement.get("status") == "SATISFIED":
+                  assert requirement.get("citation"), (
+                      "a requirement was reported SATISFIED with no citation, through the shipped "
+                      "endpoint. That is kill condition H, observed live rather than in an artifact."
+                  )
+
+          print("assessed", outcome, "recoverable", raw, "over", len(requirements), "requirements")
+          CHECK
+
+      - name: The logs, whatever happened
+        if: always()
+        run: docker logs wcr || true
+
+  release-gate:
+    name: PREDECLARED KILL CRITERIA (reported, not laundered)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: warranty
+          POSTGRES_PASSWORD: ci_only_not_a_secret
+          POSTGRES_DB: warranty_claim_recovery
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U warranty -d warranty_claim_recovery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: .fastembed_cache
+          key: fastembed-bge-small-en-v1.5-v1
+
+      - name: Rebuild the evidence from scratch
+        # From an empty database every time. Grading a criterion against artifacts that were carried
+        # over from an earlier run is grading a memory of the system rather than the system.
+        run: |
+          uv run alembic upgrade head
+          uv run python scripts/generate_corpus.py
+          uv run python scripts/seed_index.py
+          uv run python scripts/build_artifacts.py
+
+      - name: Report the release gate
+        # `release_gate.py` applies the vacuity guard first — ADR-001 §5 fails the build if any
+        # graded criterion's denominator is zero, because project 7's kill condition G passed with
+        # an empty numerator and the pass was worthless — and then reports each of the thirteen.
+        run: uv run python scripts/release_gate.py
+
+      - name: Grade the thirteen predeclared kill conditions
+        # The predeclared file itself, run directly. It imports nothing from the package: it reads
+        # `artifacts/*.json` and the standard library, so it cannot be made to pass by changing the
+        # system's own definition of what it is grading.
+        run: uv run pytest tests/test_kill_criteria.py -q
+
+      - name: Publish the gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate
+          path: |
+            artifacts/release_gate.json
+            artifacts/
+          retention-days: 90

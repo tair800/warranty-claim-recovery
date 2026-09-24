@@ -1,17 +1,17 @@
 """The thirteen predeclared kill conditions, graded against the committed evidence.
 
 **PREDECLARED. This file was committed before any source file existed.** `git log --diff-filter=A`
-on it precedes the first commit under `src/`, which is the only thing that makes the thresholds below
-mean anything: a criterion written after seeing a score is a description, not a test.
+on it precedes the first commit under `src/`, which is the only thing that makes the thresholds
+below mean anything: a criterion written after seeing a score is a description, not a test.
 
 Thresholds may be **raised**. They may never be lowered, deleted, renamed, relaxed, skipped or
 `xfail`ed. If a measurement misses, the honest outcomes are to fix the system or to record the
 failure in `DECISIONS.md` — not to move the line.
 
 **This file imports nothing from `warranty_claim_recovery`.** It reads `artifacts/*.json` and the
-standard library. A grader that imports the system under test can be made to pass by changing the
-system's own definition of the thing it is grading, which is how a project comes to grade itself.
-`tests/test_predeclaration.py` asserts that property over this file's AST.
+standard library. A grader that imports the system under test can be made to pass by changing
+the system's own definition of the thing it grades, which is how a project comes to grade
+itself. `tests/test_predeclaration.py` asserts that property over this file's AST.
 
 The absolute zeros are deliberate and are absolute. Every one of them describes an event that must
 not be possible rather than an event that should be rare: money computed wrongly, a submission with
@@ -206,10 +206,8 @@ def test_j_holdout_retrieval_clears_the_floor_and_beats_every_baseline() -> None
     baselines = evidence["baselines"]
     assert baselines, "no baselines were measured, so 'above every baseline' graded nothing"
     for name, result in baselines.items():
-        assert system > float(result["recall_at_k"]), (
-            f"the system does not beat baseline {name}: "
-            f"{system} against {result['recall_at_k']}"
-        )
+        floor = float(result["recall_at_k"])
+        assert system > floor, f"the system does not beat baseline {name}: {system} against {floor}"
 
 
 # --------------------------------------------------------------------------------------------

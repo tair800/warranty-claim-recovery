@@ -1,0 +1,36 @@
+{
+  "answers_without_redis": 0,
+  "answers_without_redis_detail": [],
+  "criterion": "L",
+  "double_leases_detail": [],
+  "double_leases_without_redis": 0,
+  "graded_by": "tests/test_redis_failure.py",
+  "guard_operations_refused_without_redis": 8,
+  "injection_modes": [
+    {
+      "description": "the client is pointed at a TCP port nothing is listening on; the connection is refused by the operating system",
+      "name": "closed_port"
+    },
+    {
+      "description": "redis.Redis.from_url yields a client whose every command raises ConnectionError; construction succeeds and the first command does not",
+      "name": "severed_client"
+    }
+  ],
+  "injection_modes_applied": [
+    "closed_port",
+    "severed_client"
+  ],
+  "injections": 16,
+  "leases_with_redis_up": 1,
+  "load_bearing_derivation": "leases_with_redis_up > 0 and submissions_with_redis_up > 0 and double_leases_without_redis == 0 and submissions_without_redis == 0",
+  "note": "Every count above comes from calling the shipped CaseQueue and SubmissionGuard while Redis was genuinely unreachable. No method on either class is patched; see src/warranty_claim_recovery/queue/failure_injection.py.",
+  "operations_probed_per_mode": 8,
+  "operations_with_redis_up": 6,
+  "queue_is_load_bearing": true,
+  "queue_operations_refused_without_redis": 8,
+  "redis_endpoint": "127.0.0.1:16380",
+  "statement": "with Redis unavailable, a case is leased twice or a submission proceeds -- 0 double-leases, 0 submissions",
+  "submissions_detail": [],
+  "submissions_with_redis_up": 1,
+  "submissions_without_redis": 0
+}

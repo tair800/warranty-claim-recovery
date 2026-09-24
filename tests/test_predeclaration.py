@@ -132,7 +132,7 @@ def test_the_kill_test_cannot_disable_itself() -> None:
 
 
 def test_every_declared_criterion_has_a_test_that_reads_it() -> None:
-    """A constant nothing asserts on is decoration, and would let a criterion be silently retired."""
+    """A constant nothing asserts on is decoration, and lets a criterion be retired in silence."""
     tree = parse()
     names_used = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
     functions = [n.name for n in tree.body if isinstance(n, ast.FunctionDef)]
@@ -151,9 +151,9 @@ def test_every_declared_criterion_has_a_test_that_reads_it() -> None:
 
 
 def test_the_vacuity_guard_exists_and_is_used() -> None:
-    """Project 7's kill condition G passed with an empty numerator. That cannot happen silently here."""
+    """Project 7's kill condition G passed with an empty numerator. Not silently, here."""
     tree = parse()
-    helpers = [n.name for n in tree.body if isinstance(n, ast.FunctionDef)]
+    helpers = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
     assert "denominator" in helpers, "the vacuity guard has been removed from the kill test"
 
     calls = sum(

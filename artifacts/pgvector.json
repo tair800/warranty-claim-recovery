@@ -1,0 +1,104 @@
+{
+  "is_synthetic_corpus": true,
+  "what_this_is": "kill condition K: proof that the dense retrieval stage's distance arithmetic is performed by pgvector against a vector column, taken from the server's own EXPLAIN ANALYZE of the statement that ran",
+  "why": "a retrieval layer that computes distances in Python over rows it fetched is not a pgvector deployment, and nothing in a response distinguishes the two. ADR-001 section 5 records why this criterion asks for the operator rather than for a vector index scan: project 7 demanded an index scan and failed because its metadata filter left so few candidate rows that a sequential scan was correctly cheaper.",
+  "statements_explained": 8,
+  "explains_using_distance_operator": 8,
+  "explain_uses_distance_operator": true,
+  "extension_installed": true,
+  "extension_version": "0.8.6",
+  "column_is_vector_type": true,
+  "column_type": "vector",
+  "column_dimensions": 384,
+  "declared_dimensions": 384,
+  "distance_operator": "<=>",
+  "executed_statement": "SELECT clause_id, program_id, policy_version, document_id, section, text,\n       start_offset, end_offset, governs,\n       embedding <=> CAST(:query_vector AS vector) AS distance\nFROM clause\nWHERE program_id = :program_id\n  AND policy_version = :policy_version\nORDER BY embedding <=> CAST(:query_vector AS vector)\nLIMIT :k",
+  "index_definition": "CREATE INDEX ix_clause_embedding_hnsw ON public.clause USING hnsw (embedding vector_cosine_ops) WITH (m='16', ef_construction='200')",
+  "declared_build_parameters": {
+    "index_name": "ix_clause_embedding_hnsw",
+    "method": "hnsw",
+    "opclass": "vector_cosine_ops",
+    "m": 16,
+    "ef_construction": 200
+  },
+  "clauses_indexed": 270,
+  "documents_indexed": 54,
+  "corpus_state": "indexed",
+  "embedding_policy": {
+    "model": "BAAI/bge-small-en-v1.5",
+    "dimensions": 384,
+    "normalised": true,
+    "query_instruction": "Represent this sentence for searching relevant passages: ",
+    "fingerprint": "6df40ac9751eddb5"
+  },
+  "server_version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+  "database": "warranty_claim_recovery",
+  "plans": [
+    {
+      "program_id": "aldersgate-motors-2019.1",
+      "policy_version": "2019.1",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=10.55..10.55 rows=2 width=669) (actual time=0.177..0.181 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=10.55..10.55 rows=2 width=669) (actual time=0.175..0.177 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 32kB\n        ->  Bitmap Heap Scan on public.clause  (cost=4.17..10.54 rows=2 width=669) (actual time=0.064..0.148 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Recheck Cond: (((clause.program_id)::text = 'aldersgate-motors-2019.1'::text) AND ((clause.policy_version)::text = '2019.1'::text))\n              Heap Blocks: exact=2\n              ->  Bitmap Index Scan on ix_clause_program_policy  (cost=0.00..4.17 rows=2 width=0) (actual time=0.026..0.027 rows=15 loops=1)\n                    Index Cond: (((clause.program_id)::text = 'aldersgate-motors-2019.1'::text) AND ((clause.policy_version)::text = '2019.1'::text))\nPlanning Time: 0.165 ms\nExecution Time: 0.214 ms"
+    },
+    {
+      "program_id": "aldersgate-motors-2020.3",
+      "policy_version": "2020.3",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=8.18..8.19 rows=1 width=669) (actual time=0.163..0.165 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=8.18..8.19 rows=1 width=669) (actual time=0.161..0.162 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 32kB\n        ->  Index Scan using ix_clause_program_policy on public.clause  (cost=0.15..8.17 rows=1 width=669) (actual time=0.068..0.136 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Index Cond: (((clause.program_id)::text = 'aldersgate-motors-2020.3'::text) AND ((clause.policy_version)::text = '2020.3'::text))\nPlanning Time: 0.308 ms\nExecution Time: 0.201 ms"
+    },
+    {
+      "program_id": "aldersgate-motors-2021.4",
+      "policy_version": "2021.4",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=8.18..8.19 rows=1 width=669) (actual time=0.220..0.223 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=8.18..8.19 rows=1 width=669) (actual time=0.218..0.220 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 32kB\n        ->  Index Scan using ix_clause_program_policy on public.clause  (cost=0.15..8.17 rows=1 width=669) (actual time=0.078..0.184 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Index Cond: (((clause.program_id)::text = 'aldersgate-motors-2021.4'::text) AND ((clause.policy_version)::text = '2021.4'::text))\nPlanning Time: 0.220 ms\nExecution Time: 0.256 ms"
+    },
+    {
+      "program_id": "brightwater-controls-2019.3",
+      "policy_version": "2019.3",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=8.18..8.19 rows=1 width=669) (actual time=0.225..0.228 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=8.18..8.19 rows=1 width=669) (actual time=0.223..0.224 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 33kB\n        ->  Index Scan using ix_clause_program_policy on public.clause  (cost=0.15..8.17 rows=1 width=669) (actual time=0.079..0.191 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Index Cond: (((clause.program_id)::text = 'brightwater-controls-2019.3'::text) AND ((clause.policy_version)::text = '2019.3'::text))\nPlanning Time: 0.217 ms\nExecution Time: 0.266 ms"
+    },
+    {
+      "program_id": "brightwater-controls-2020.2",
+      "policy_version": "2020.2",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=10.55..10.55 rows=2 width=669) (actual time=0.280..0.283 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=10.55..10.55 rows=2 width=669) (actual time=0.278..0.280 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 32kB\n        ->  Bitmap Heap Scan on public.clause  (cost=4.17..10.54 rows=2 width=669) (actual time=0.096..0.223 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Recheck Cond: (((clause.program_id)::text = 'brightwater-controls-2020.2'::text) AND ((clause.policy_version)::text = '2020.2'::text))\n              Heap Blocks: exact=3\n              ->  Bitmap Index Scan on ix_clause_program_policy  (cost=0.00..4.17 rows=2 width=0) (actual time=0.041..0.041 rows=15 loops=1)\n                    Index Cond: (((clause.program_id)::text = 'brightwater-controls-2020.2'::text) AND ((clause.policy_version)::text = '2020.2'::text))\nPlanning Time: 0.219 ms\nExecution Time: 0.329 ms"
+    },
+    {
+      "program_id": "brightwater-controls-2021.1",
+      "policy_version": "2021.1",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=10.55..10.55 rows=2 width=669) (actual time=0.189..0.192 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=10.55..10.55 rows=2 width=669) (actual time=0.188..0.189 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 33kB\n        ->  Bitmap Heap Scan on public.clause  (cost=4.17..10.54 rows=2 width=669) (actual time=0.068..0.162 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Recheck Cond: (((clause.program_id)::text = 'brightwater-controls-2021.1'::text) AND ((clause.policy_version)::text = '2021.1'::text))\n              Heap Blocks: exact=2\n              ->  Bitmap Index Scan on ix_clause_program_policy  (cost=0.00..4.17 rows=2 width=0) (actual time=0.028..0.029 rows=15 loops=1)\n                    Index Cond: (((clause.program_id)::text = 'brightwater-controls-2021.1'::text) AND ((clause.policy_version)::text = '2021.1'::text))\nPlanning Time: 0.172 ms\nExecution Time: 0.231 ms"
+    },
+    {
+      "program_id": "calder-thermal-2019.2",
+      "policy_version": "2019.2",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=10.55..10.55 rows=2 width=669) (actual time=0.143..0.146 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=10.55..10.55 rows=2 width=669) (actual time=0.142..0.144 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 33kB\n        ->  Bitmap Heap Scan on public.clause  (cost=4.17..10.54 rows=2 width=669) (actual time=0.053..0.120 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Recheck Cond: (((clause.program_id)::text = 'calder-thermal-2019.2'::text) AND ((clause.policy_version)::text = '2019.2'::text))\n              Heap Blocks: exact=3\n              ->  Bitmap Index Scan on ix_clause_program_policy  (cost=0.00..4.17 rows=2 width=0) (actual time=0.023..0.024 rows=15 loops=1)\n                    Index Cond: (((clause.program_id)::text = 'calder-thermal-2019.2'::text) AND ((clause.policy_version)::text = '2019.2'::text))\nPlanning Time: 0.149 ms\nExecution Time: 0.173 ms"
+    },
+    {
+      "program_id": "calder-thermal-2020.1",
+      "policy_version": "2020.1",
+      "rejection_code": "MISSING_SERIAL",
+      "rows_returned": 5,
+      "uses_distance_operator": true,
+      "plan": "Limit  (cost=10.55..10.55 rows=2 width=669) (actual time=0.179..0.183 rows=5 loops=1)\n  Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n  ->  Sort  (cost=10.55..10.55 rows=2 width=669) (actual time=0.178..0.179 rows=5 loops=1)\n        Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, ((embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Key: ((clause.embedding <=> '[<384 dimensions abbreviated>]'::vector))\n        Sort Method: top-N heapsort  Memory: 33kB\n        ->  Bitmap Heap Scan on public.clause  (cost=4.17..10.54 rows=2 width=669) (actual time=0.065..0.150 rows=15 loops=1)\n              Output: clause_id, program_id, policy_version, document_id, section, text, start_offset, end_offset, governs, (embedding <=> '[<384 dimensions abbreviated>]'::vector)\n              Recheck Cond: (((clause.program_id)::text = 'calder-thermal-2020.1'::text) AND ((clause.policy_version)::text = '2020.1'::text))\n              Heap Blocks: exact=3\n              ->  Bitmap Index Scan on ix_clause_program_policy  (cost=0.00..4.17 rows=2 width=0) (actual time=0.028..0.029 rows=15 loops=1)\n                    Index Cond: (((clause.program_id)::text = 'calder-thermal-2020.1'::text) AND ((clause.policy_version)::text = '2020.1'::text))\nPlanning Time: 0.189 ms\nExecution Time: 0.216 ms"
+    }
+  ],
+  "plan_note": "the stored plans abbreviate the 384-number vector literal, which appears three times in each; the operator and every plan node are verbatim, and the booleans above were computed from the unabbreviated text",
+  "no_credentials_recorded": "the connection URL is not written here; the database is identified by the server's own report of its version and current database name"
+}

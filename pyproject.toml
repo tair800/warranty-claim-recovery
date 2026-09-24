@@ -70,3 +70,8 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    # Tests that need PostgreSQL or Redis. Registered rather than tolerated: an unregistered mark
+    # is a warning today and a typo that silently deselects a whole file tomorrow.
+    "infrastructure: needs the local PostgreSQL or Redis from docker-compose.yml",
+]

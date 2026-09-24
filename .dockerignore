@@ -1,0 +1,35 @@
+# What must not enter the build context.
+#
+# Two entries here are about correctness rather than about image size.
+#
+# `.env` is first because it is the one that costs something. It is gitignored, so it never reaches
+# a commit — but `COPY . .` would put a developer's real database URL and approver token into an
+# image layer, where `docker history` will show it for as long as the image exists. Nothing in this
+# repository copies the whole directory today; this line is here for the day something does.
+#
+# `data/generated/` is excluded because the image regenerates the corpus from its committed seed in
+# the build stage. Shipping a locally generated corpus into the context would mean the image was
+# built from whatever happened to be on the builder's disk, and the seed would stop being the thing
+# that decides what the corpus is.
+#
+# `.fastembed_cache/` is excluded for the same reason in miniature: the build stage downloads the
+# model it was measured with, and a local cache that had drifted to another model would be used in
+# preference without anything saying so.
+
+.env
+.venv/
+.git/
+.github/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+data/generated/
+.fastembed_cache/
+docs/screenshots/
+node_modules/
+.claude/
+
+# Not excluded, deliberately: artifacts/. The evidence screen reads those files and is the one
+# screen that works with no database, so they belong in the image.

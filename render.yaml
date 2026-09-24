@@ -1,0 +1,80 @@
+# A public, read-only demonstration on Render's free tier, in Frankfurt, from the Dockerfile in this
+# repository. Deployed with the Blueprint flow; nothing here needs a payment method.
+#
+# Five things in this file are deliberate.
+#
+# **The health check is `/livez`, not `/healthz`.** They answer different questions and the
+# difference decides whether this service ever receives traffic. `/healthz` reports whether the
+# database and the queue are reachable and answers 503 when they are not — that is the truthful
+# answer and it stays that way. But a platform health check wired to `/healthz` would refuse to
+# route traffic to a console whose evidence screens work perfectly without either, so a database
+# that was still waking up would present as a service that is down. The platform is asked whether
+# the process is alive. An operator still asks `/healthz` what state it is in.
+#
+# **`WCR_READ_ONLY` is true, and here it has something real to protect.** Unlike a pure question-
+# answering demo, this system has mutating routes: it leases cases, records approvals and submits
+# recoveries. A public instance must not run them. The flag is the gate in front of those routes,
+# not a label on the header.
+#
+# **`WCR_APPROVER_TOKEN` is deliberately absent, and its absence is the second lock.** It has no
+# default, so without it the human-in-the-loop gate can approve nothing — and ADR-001 §4 claim 2
+# says nothing leaves the system without a recorded approval. A public demo that could approve its
+# own submissions would be demonstrating the opposite of the claim it exists to show.
+#
+# **`WCR_LLM_API_KEY` is deliberately absent too.** The shipped composer is extractive: it returns
+# spans from the clauses it cites and structurally cannot assert a policy provision its evidence
+# does not contain. The abstractive arm raises rather than returning a stub, so there is nothing
+# here that could spend money on behalf of a visitor — the only safe shape for a public endpoint in
+# front of anything metered. ADR-001 §3 records why no figure is published for that arm.
+#
+# **The corpus and its clause vectors are baked into the image rather than built at start.**
+# Encoding the clause corpus takes minutes on a builder and longer on a shared-CPU instance, past
+# any health check. The Docker build regenerates the corpus from its committed seed and precomputes
+# the vectors; the container loads them into PostgreSQL. The query encoder still loads on first
+# request — `artifacts/encoder_memory.json` measures it at 285MB resident against this instance's
+# 512MB, which is why this project encodes queries live where project 7 could not.
+
+services:
+  - type: web
+    name: warranty-claim-recovery
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /livez
+    autoDeploy: true
+    envVars:
+      - key: WCR_READ_ONLY
+        value: "true"
+      - key: WCR_ENVIRONMENT
+        value: public-demo
+
+      # The database: a free Neon PostgreSQL 16 in the same region, with pgvector, not a Render one.
+      # Render allows one free PostgreSQL per workspace and another project in this portfolio holds
+      # it; taking it would mean modifying a frozen project. Neon ships pgvector, which is what kill
+      # condition K is about, so the deployed console runs real retrieval against a real vector
+      # column rather than serving committed artifacts alone.
+      #
+      # Use the **direct** endpoint rather than the pooled one. `store.engine` applies session
+      # settings on connect, and a transaction-mode pooler discards them — the deployed service
+      # would then search at different parameters from the ones every published figure was measured
+      # at, and nothing would say so.
+      #
+      # `sync: false` means the blueprint declares that this variable exists and leaves its value to
+      # the dashboard. That is the only correct place for a credential: a DSN written here would be
+      # committed, and every deployment of this blueprint would carry it.
+      - key: WCR_DATABASE_URL
+        sync: false
+
+      # Redis: a free Upstash instance, also declared and not valued here, for the same reason.
+      # It is load-bearing rather than decorative — the case queue, its leases and the submission
+      # idempotency state live in it — and with it unreachable the queue fails closed, which is kill
+      # condition L. A public instance with no Redis therefore leases nothing and submits nothing,
+      # and `/healthz` says which of the two dependencies is missing.
+      - key: WCR_REDIS_URL
+        sync: false
+
+# No `databases:` block, deliberately. Neither backing service is Render's: PostgreSQL is a free
+# Neon instance in the same region and Redis is a free Upstash one, both for the reasons given
+# against their variables above. `make db` gives the same pair locally from `docker-compose.yml`, on
+# the same PostgreSQL major version, with the same extension.
