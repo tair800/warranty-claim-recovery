@@ -1,0 +1,36 @@
+# Local infrastructure. Both services bind to loopback on ports chosen so they cannot collide with
+# the other repositories in this workspace or with a locally installed PostgreSQL or Redis.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: warranty
+      POSTGRES_PASSWORD: warranty_local_only
+      POSTGRES_DB: warranty_claim_recovery
+    ports: ["127.0.0.1:15441:5432"]
+    # The checkpointer writes a row per node per case, and the clause index is small. These are the
+    # settings an HNSW build needs so that kill condition K is not a question about container
+    # defaults.
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c maintenance_work_mem=256MB
+      -c work_mem=32MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warranty -d warranty_claim_recovery"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:16380:6379"]
+    # No persistence on purpose: the queue's durability story is the PostgreSQL checkpointer, not
+    # Redis. A Redis that survived a restart would hide the fact that leases are recoverable
+    # without it.
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

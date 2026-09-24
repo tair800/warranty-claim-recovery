@@ -1,0 +1,23 @@
+{
+  "is_synthetic_corpus": true,
+  "what_this_is": "the encoder's resident memory, measured before a deployment topology was chosen",
+  "why": "project 7 shipped a multilingual model with a 250,000-token vocabulary onto a 512MB instance; the loaded session measured 671MB, the container was killed on every query, and the number was knowable in advance. This project measured first.",
+  "model": "BAAI/bge-small-en-v1.5",
+  "dimensions": 384,
+  "batch": 64,
+  "rss_mb": {
+    "baseline": 20.5,
+    "after_import": 84.1,
+    "after_load": 226.1,
+    "after_embedding": 285.1
+  },
+  "peak_mb": 285.1,
+  "free_tier_mb": 512,
+  "fits_free_tier_with_headroom": true,
+  "comparison": {
+    "project_7_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "project_7_peak_mb": 671.5,
+    "difference_is": "vocabulary size: 250,000 multilingual tokens against roughly 30,000 English ones, and the embedding table dominates"
+  },
+  "consequence": "this deployment runs the encoder live and answers free text, where project 7 had to serve precomputed query vectors only"
+}
