@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+
+{% block content %}
+
+<h2>The decision path</h2>
+<div class="panel">
+  <p class="note">
+    The case machine's nodes, in order, taken from <code>domain.CaseState</code> rather than typed
+    into this page. A state vocabulary that drifts from the graph's node names makes the durability
+    claim uncheckable: "resumes at the same node" needs one vocabulary, not a state name and a node
+    name a reader has to map between. Every node is resumable, and every tool invocation is recorded
+    <em>before</em> it runs and completed after — which is the pair that makes "no tool re-execution
+    after a kill" checkable rather than hoped for.
+  </p>
+  <div class="mono small" style="line-height:2">
+    {% for node in path %}
+      <span class="pill">{{ node.value }}</span>{% if not loop.last %} <span class="faint">→</span> {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<h2>Durability across a kill</h2>
+<div class="grid three">
+  <div class="tile">
+    <div class="label">Node divergences</div>
+    <div class="value {% if metric(durability_artifact, 'node_divergences') == not_measured %}unknown{% elif metric(durability_artifact, 'node_divergences') == '0' %}pass{% else %}fail{% endif %}">
+      {{ metric(durability_artifact, "node_divergences") if metric(durability_artifact, "node_divergences") != not_measured else not_run }}
+    </div>
+    <div class="foot">over {{ metric(durability_artifact, "cases_killed") }} killed case(s). ADR-001 §5 A.</div>
+  </div>
+  <div class="tile">
+    <div class="label">Tool re-executions</div>
+    <div class="value {% if metric(durability_artifact, 'tool_reexecutions') == not_measured %}unknown{% elif metric(durability_artifact, 'tool_reexecutions') == '0' %}pass{% else %}fail{% endif %}">
+      {{ metric(durability_artifact, "tool_reexecutions") if metric(durability_artifact, "tool_reexecutions") != not_measured else not_run }}
+    </div>
+    <div class="foot">over {{ metric(durability_artifact, "tool_invocations_observed") }} invocation(s). ADR-001 §5 B.</div>
+  </div>
+  <div class="tile">
+    <div class="label">Human decisions lost</div>
+    <div class="value {% if metric(durability_artifact, 'human_decisions_lost') == not_measured %}unknown{% elif metric(durability_artifact, 'human_decisions_lost') == '0' %}pass{% else %}fail{% endif %}">
+      {{ metric(durability_artifact, "human_decisions_lost") if metric(durability_artifact, "human_decisions_lost") != not_measured else not_run }}
+    </div>
+    <div class="foot">over {{ metric(durability_artifact, "human_decisions_before_kill") }} decision(s) recorded before the kill. ADR-001 §5 C.</div>
+  </div>
+</div>
+
+<h2>The approval binding</h2>
+<div class="panel">
+  <p class="note">
+    "Approved" and "approved <em>this</em>" are different claims. A case can be approved, re-priced
+    when a technician supplies the missing invoice, and then submitted — and the approval a reader
+    sees in the log would be an approval of a different amount. So an approval records the case
+    <strong>and the case version</strong>, and a submission is valid only against an approval for its
+    own version. An approval recorded <em>after</em> a submission does not count: counting it would
+    let a system submit first and paper over it afterwards, which is the failure a four-eyes control
+    exists to prevent.
+  </p>
+  <dl class="kv">
+    <dt>submissions observed</dt><dd>{{ metric(submission_artifact, "submissions_observed") }}</dd>
+    <dt>approvals observed</dt><dd>{{ metric(submission_artifact, "approvals_observed") }}</dd>
+    <dt>submissions without an approval</dt><dd>{{ metric(submission_artifact, "submissions_without_approval") }}</dd>
+    <dt>approved at a stale version</dt><dd>{{ metric(submission_artifact, "submissions_with_stale_version_approval") }}</dd>
+  </dl>
+  <p class="note small" style="margin-bottom:0">
+    Read from <code>artifacts/submission.json</code>, which is produced by a verifier that imports
+    nothing from the graph and answers the question from the event stream alone. An audit log the
+    acting code also validates proves only that the acting code is self-consistent.
+  </p>
+</div>
+
+<h2>Idempotent submission</h2>
+<div class="grid two">
+  <div class="panel">
+    <dl class="kv">
+      <dt>identities raced</dt><dd>{{ metric(submission_artifact, "identities_raced") }}</dd>
+      <dt>concurrent attempts per identity</dt><dd>{{ metric(submission_artifact, "concurrent_attempts_per_identity") }}</dd>
+      <dt>maximum effects for one identity</dt><dd>{{ metric(submission_artifact, "max_effects_for_one_identity") }}</dd>
+      <dt>duplicate submissions</dt><dd>{{ metric(submission_artifact, "duplicate_submissions") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      The recovery identity is claim plus part plus serial, not the claim alone. One claim may
+      legitimately be resubmitted for a different part after a partial adjudication, and keying on
+      the claim would refuse that second, correct submission as a duplicate — a different way of
+      losing the same money.
+    </p>
+  </div>
+  <div class="panel">
+    <h3 style="margin-top:0">Redis, and failing closed</h3>
+    <dl class="kv">
+      <dt>injections</dt><dd>{{ metric(redis_artifact, "injections") }}</dd>
+      <dt>double leases without Redis</dt><dd>{{ metric(redis_artifact, "double_leases_without_redis") }}</dd>
+      <dt>submissions without Redis</dt><dd>{{ metric(redis_artifact, "submissions_without_redis") }}</dd>
+      <dt>queue is load-bearing</dt><dd>{{ metric(redis_artifact, "queue_is_load_bearing") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      With Redis unreachable the queue raises rather than degrading to an in-memory fallback. A
+      fallback would let two workers lease the same case and both act on it, which is the one failure
+      the lease exists to prevent.
+    </p>
+  </div>
+</div>
+
+<h2>The audit-event vocabulary</h2>
+<div class="panel">
+  <p class="note">
+    These strings are imported from <code>audit.py</code>, so the vocabulary on this page and the
+    vocabulary the verifier reads are the same constants. A typo in one is a failed import rather
+    than a silent gap in the verifier's view.
+  </p>
+  <div class="mono small" style="line-height:2.2">
+    {% for kind in kinds %}<span class="pill">{{ kind }}</span> {% endfor %}
+  </div>
+</div>
+
+<h2>Approvals from this console</h2>
+<div class="panel">
+  <p class="note">
+    There is exactly one route in this console that mutates anything —
+    <code>POST /api/case/{claim_id}/approval</code> — and three things have to be true before it
+    records an event: the deployment must not be read-only, an approver token must be configured, and
+    the caller must present it in the <code class="mono">{{ approver_header }}</code> header.
+    <code>WCR_READ_ONLY</code> defaults to true and <code>{{ approver_env }}</code> has no default, so
+    an instance that configured neither has both locks. All three refusals are <code>403</code>.
+  </p>
+  <p class="note small">
+    Events granted here live in <strong>this process's memory</strong> and are not presented as
+    durable. The durable approval binding is the case machine's checkpoint; this log exists to make
+    the contract visible — that a granted approval names a case <em>and</em> a case version before
+    anything could act on it — and kill condition D is graded from the audit stream rather than from
+    this table.
+  </p>
+  {% if console_events %}
+    <table>
+      <thead><tr><th>event</th><th>case</th><th class="num">version</th><th>kind</th><th>node</th><th>at</th><th>actor</th></tr></thead>
+      <tbody>
+        {% for event in console_events %}
+          <tr>
+            <td class="mono small">{{ event.event_id }}</td>
+            <td class="mono small">{{ event.case_id }}</td>
+            <td class="num">{{ event.case_version }}</td>
+            <td class="mono small">{{ event.kind }}</td>
+            <td class="mono small">{{ event.node.value }}</td>
+            <td class="mono small">{{ event.at.isoformat() }}</td>
+            <td class="mono small">{{ event.actor }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="state">
+      <strong>No approval has been recorded in this process.</strong>
+      <p class="small">
+        Expected on any read-only instance, which is the default and is what the public demo runs.
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

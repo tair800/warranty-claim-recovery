@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Evaluation{% endblock %}
+
+{#
+  Every number on this screen is read out of artifacts/*.json. Not one of them is computed here.
+  A console that recomputed a criterion would be a second grader, and the day the two disagreed the
+  figure a reader quoted would be whichever one they happened to open.
+#}
+{% macro count_tile(label, value, foot, headline=false) %}
+  <div class="tile {{ 'headline' if headline }}">
+    <div class="label">{{ label }}</div>
+    <div class="value {% if value == not_measured %}unknown{% elif value == '0' %}pass{% else %}fail{% endif %}">
+      {{ value if value != not_measured else not_run }}
+    </div>
+    <div class="foot">{{ foot }}</div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+
+<h2>The number this project is built around</h2>
+<div class="grid three">
+  {{ count_tile(
+      "False recoveries",
+      metric(recovery_artifact, "holdout_false_recoveries"),
+      "hold-out cases gated recoverable whose ground truth is NOT_RECOVERABLE. ADR-001 §5 G: threshold 0.",
+      true) }}
+  {{ count_tile(
+      "False denials",
+      metric(recovery_artifact, "holdout_false_denials"),
+      "hold-out cases withheld whose ground truth authorised recovery. Published by the evaluation harness as holdout_false_denials.") }}
+  {{ count_tile(
+      "Amount mismatches",
+      metric(recovery_artifact, "amount_mismatches"),
+      "recoverable amounts differing from the generator's truth, at exact Decimal equality. ADR-001 §5 F: threshold 0.") }}
+</div>
+
+<p class="note">
+  <strong>A false recovery is reported as a count and is never folded into an F1.</strong> A combined
+  score lets one false recovery be paid for by some number of correct ones, and there is no number of
+  correct recoveries that pays for taking money from a manufacturer on a basis that does not exist.
+  The two error directions also cost different people different things — a false recovery is a claim
+  filed against a manufacturer with nothing behind it; a false denial is money the distributor was
+  owed and never asked for — and a single figure that averages them tells nobody which one happened.
+</p>
+
+<div class="grid three">
+  <div class="tile">
+    <div class="label">REVIEW rate</div>
+    <div class="value {% if metric(recovery_artifact, 'holdout_review_rate') == not_measured %}unknown{% endif %}">
+      {{ metric(recovery_artifact, "holdout_review_rate") if metric(recovery_artifact, "holdout_review_rate") != not_measured else not_run }}
+    </div>
+    <div class="foot">
+      the share of hold-out cases sent to a person. Deliberately not minimised: REVIEW exists so that
+      a contradiction is not collapsed into a "no", and a system tuned to review nothing is a system
+      that decides everything.
+    </div>
+  </div>
+  <div class="tile">
+    <div class="label">Cases scored</div>
+    <div class="value {% if metric(recovery_artifact, 'cases_scored') == not_measured %}unknown{% endif %}">
+      {{ metric(recovery_artifact, "cases_scored") if metric(recovery_artifact, "cases_scored") != not_measured else not_run }}
+    </div>
+    <div class="foot">
+      the denominator, published beside the numerator. ADR-001's vacuity guard fails the build when a
+      graded criterion's denominator is zero: a criterion that cannot fail is not a criterion.
+    </div>
+  </div>
+  <div class="tile">
+    <div class="label">NOT_RECOVERABLE in the hold-out</div>
+    <div class="value {% if metric(recovery_artifact, 'holdout_not_recoverable_cases') == not_measured %}unknown{% endif %}">
+      {{ metric(recovery_artifact, "holdout_not_recoverable_cases") if metric(recovery_artifact, "holdout_not_recoverable_cases") != not_measured else not_run }}
+    </div>
+    <div class="foot">
+      the population kill condition G is graded over. Project 7's equivalent passed with an empty
+      numerator and the pass was worthless.
+    </div>
+  </div>
+</div>
+
+<h2>Retrieval, against baselines that differ in the retrieval stage itself</h2>
+<div class="panel">
+  {% if retrieval_artifact %}
+    <table>
+      <thead>
+        <tr><th>system</th><th class="num">recall@{{ metric(retrieval_artifact, "k") }}</th><th>what it is</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>this system</strong> — dense, filtered by programme and policy version</td>
+          <td class="num">{{ metric(retrieval_artifact, "system", "recall_at_k") }}</td>
+          <td class="faint small">embeddings in pgvector, metadata filter applied before ranking</td>
+        </tr>
+        {% for name, result in (retrieval_artifact.get("baselines") or {}) | dictsort %}
+          <tr>
+            <td class="mono">{{ name }}</td>
+            <td class="num">{{ metric(result, "recall_at_k") }}</td>
+            <td class="faint small">{{ result.get("description", "predeclared in ADR-001 §6") }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="faint">No baseline was measured, so "above every baseline" graded nothing.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="note small">
+      Hold-out queries: <code>{{ metric(retrieval_artifact, "holdout_queries") }}</code>. Each
+      baseline removes or replaces a <em>retrieval</em> component rather than a downstream one.
+      Project 7's equivalent criterion required beating a baseline that ran the identical retriever,
+      which was an impossible target and a defect in the criterion rather than in the system.
+    </p>
+  {% else %}
+    <div class="state">
+      <strong>{{ not_run }}</strong>
+      <p class="small"><code>artifacts/retrieval.json</code> is absent. Run <code>make artifacts</code>.</p>
+    </div>
+  {% endif %}
+</div>
+
+<h2>Evidence: groundedness and faithful citation</h2>
+<div class="grid two">
+  <div class="panel">
+    <dl class="kv">
+      <dt>requirements marked satisfied</dt><dd>{{ metric(groundedness_artifact, "requirements_marked_satisfied") }}</dd>
+      <dt>satisfied without a citation</dt><dd>{{ metric(groundedness_artifact, "requirements_satisfied_without_citation") }}</dd>
+      <dt>citations checked</dt><dd>{{ metric(groundedness_artifact, "citations_checked") }}</dd>
+      <dt>unfaithful citations</dt><dd>{{ metric(groundedness_artifact, "unfaithful_citations") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      A citation is checked by slicing the named document version at the recorded offsets and
+      comparing, never by testing membership. A clause that appears twice in one policy is a
+      coordinate that has drifted, and membership would call it faithful.
+    </p>
+  </div>
+  <div class="panel">
+    <dl class="kv">
+      <dt>pgvector extension</dt><dd>{{ metric(pgvector_artifact, "extension_installed") }}</dd>
+      <dt>column is a vector type</dt><dd>{{ metric(pgvector_artifact, "column_is_vector_type") }}</dd>
+      <dt>plan uses the distance operator</dt><dd>{{ metric(pgvector_artifact, "explain_uses_distance_operator") }}</dd>
+      <dt>statements explained</dt><dd>{{ metric(pgvector_artifact, "statements_explained") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      Kill condition K asks whether the extension is doing the arithmetic, proven by the server's own
+      <code>EXPLAIN</code>. It deliberately does not require an index <em>scan</em>: a metadata filter
+      that leaves few candidate rows makes a sequential scan the correct plan, and a criterion that
+      demands the wrong plan is a criterion that fails on a healthy system.
+    </p>
+  </div>
+</div>
+
+<h2>The hold-out</h2>
+<div class="panel">
+  {% if holdout_artifact %}
+    <dl class="kv">
+      <dt>split unit</dt><dd>{{ metric(holdout_artifact, "split_unit") }}</dd>
+      <dt>rule</dt><dd>{{ metric(holdout_artifact, "rule") }}</dd>
+      <dt>programmes</dt>
+      <dd>{{ metric(holdout_artifact, "counts", "holdout_programs") }} held out of {{ metric(holdout_artifact, "programs_total") }}</dd>
+      <dt>cases</dt>
+      <dd>{{ metric(holdout_artifact, "counts", "holdout_cases") }} held out of {{ metric(holdout_artifact, "cases_total") }}</dd>
+      <dt>leaked programmes</dt><dd>{{ metric(holdout_artifact, "leaked_programs") }}</dd>
+      <dt>leaked cases</dt><dd>{{ metric(holdout_artifact, "leaked_cases") }}</dd>
+      <dt>digest matches the corpus</dt><dd>{{ metric(holdout_artifact, "digest_matches_corpus") }}</dd>
+      <dt>digest</dt><dd>{{ metric(holdout_artifact, "digest") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      Split by warranty programme and frozen in a commit that carries no score. The rule consults no
+      seed and no score, so there is nothing to re-roll; the digest covers <em>both</em> sides, because
+      one taken over the hold-out alone would be blind to a claim quietly leaving the development set.
+    </p>
+  {% else %}
+    <div class="state">
+      <strong>{{ not_run }}</strong>
+      <p class="small"><code>artifacts/holdout.json</code> is absent. Run <code>make holdout</code>.</p>
+    </div>
+  {% endif %}
+</div>
+
+<h2>The thirteen predeclared kill conditions</h2>
+<div class="panel">
+  <p class="note">
+    Fixed in ADR-001 §5 before any source file existed, and graded by
+    <code>tests/test_kill_criteria.py</code>, which imports nothing from this package. A threshold may
+    be raised. None may be lowered, deleted, renamed, relaxed, skipped or marked <code>xfail</code>.
+    The verdicts below are read from <code>artifacts/release_gate.json</code>; an absent verdict is
+    <code>{{ not_run }}</code> and never a blank, because a blank in a verdict column reads as a pass.
+  </p>
+  <table>
+    <thead>
+      <tr><th style="width:1%"></th><th>the project fails if</th><th>threshold</th><th>graded from</th><th>verdict</th></tr>
+    </thead>
+    <tbody>
+      {% for criterion in criteria %}
+        <tr>
+          <td class="mono"><strong>{{ criterion.letter }}</strong></td>
+          <td>{{ criterion.fails_if }}</td>
+          <td class="mono small">{{ criterion.threshold }}</td>
+          <td class="mono small faint">{{ criterion.artifact }}</td>
+          <td>
+            {% set verdict = verdicts.get(criterion.letter, not_run) %}
+            {% if verdict == "PASS" %}<span class="pill ok">PASS</span>
+            {% elif verdict == "FAIL" %}<span class="pill bad">FAIL</span>
+            {% else %}<span class="pill warn">{{ verdict }}</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>The corpus these figures were measured over</h2>
+<div class="panel">
+  {% if corpus_artifact %}
+    <dl class="kv">
+      <dt>generator</dt><dd>{{ metric(corpus_artifact, "generator_version") }}</dd>
+      <dt>seed</dt><dd>{{ metric(corpus_artifact, "seed") }}</dd>
+      <dt>programmes</dt><dd>{{ metric(corpus_artifact, "counts", "programs") }}</dd>
+      <dt>claims</dt><dd>{{ metric(corpus_artifact, "counts", "claims") }}</dd>
+      <dt>clauses</dt><dd>{{ metric(corpus_artifact, "counts", "clauses") }}</dd>
+      <dt>clause offsets verified</dt><dd>{{ metric(corpus_artifact, "clause_offsets_verified") }}</dd>
+      <dt>contains a timestamp</dt><dd>{{ metric(corpus_artifact, "contains_timestamp") }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      Two runs of the generator produce byte-identical files: no timestamp, no hostname, no path and
+      no clock reading anywhere in the output. Without that the frozen split would describe a corpus
+      that no longer exists, and every score graded against it would be graded against nothing.
+    </p>
+  {% else %}
+    <div class="state">
+      <strong>{{ not_run }}</strong>
+      <p class="small"><code>artifacts/corpus.json</code> is absent. Run <code>make corpus</code>.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

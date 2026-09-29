@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from "_states.html" import corpus_missing, no_case, case_problem, outcome_pill %}
+{% block title %}Recovery calculation{% endblock %}
+
+{% block content %}
+{% if corpus_problem %}
+  {{ corpus_missing(corpus_problem) }}
+{% elif not case %}
+  {{ no_case() }}
+{% else %}
+
+<div class="panel">
+  {% with action = "/recovery", scoped = true %}{% include "_picker.html" %}{% endwith %}
+</div>
+
+{% if case.problem %}
+  {{ case_problem(case.problem) }}
+{% else %}
+
+<h2>The recovery calculation</h2>
+<div class="panel">
+  <p class="note">
+    A column, not a total. An adjudicator who cannot reconstruct the subtraction cannot check the
+    figure, and the package they cannot check is the one they refuse rather than reconstruct. Every
+    line below is a field of the record the gate read; the order is the order the policy applies its
+    terms, and it is the order that decides the money. The cap is applied <em>after</em> the
+    deductible — applying it to the gross would defeat the deductible entirely and claim the
+    manufacturer's money.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th style="width:1%"></th><th>line</th><th class="num">amount</th><th>what it is</th></tr>
+    </thead>
+    <tbody>
+      {% for row in case.rows %}
+        <tr {% if loop.last %}class="total"{% endif %}>
+          <td class="num faint">{{ row.operator }}</td>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.amount }}</td>
+          <td class="faint small">{{ row.note }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="note small">
+    <strong>The floor line is a residual, not a formula.</strong> It is the recorded recoverable
+    amount minus what the subtractions above come to, so the column always adds up <em>and</em> a
+    disagreement between the record and the arithmetic would appear here as a number rather than be
+    hidden by re-running the calculation for display. Rounding happens once, on every field at the
+    same moment, in <code>recovery.finalise</code>; every intermediate keeps full precision, because
+    rounding at the deductible and again at the cap and again at the total drifts by a penny and
+    kill condition F is exact <code>Decimal</code> equality.
+  </p>
+</div>
+
+<h2>Claimed, and what became of it</h2>
+<div class="grid three">
+  <div class="tile">
+    <div class="label">Claimed total</div>
+    <div class="value">{{ case.computation.claimed_total.amount }}</div>
+    <div class="foot">
+      {{ case.computation.currency.value }} ·
+      {{ case.record.claim.claimed_parts }} parts plus
+      {{ case.record.claim.claimed_labour_hours }} h at {{ case.record.claim.claimed_labour_rate }}
+    </div>
+  </div>
+  <div class="tile">
+    <div class="label">Excluded</div>
+    <div class="value">{{ case.computation.excluded_amount.amount }}</div>
+    <div class="foot">
+      everything the claim asked for that this recovery does not include — shown as excluded rather
+      than quietly dropped
+    </div>
+  </div>
+  <div class="tile headline">
+    <div class="label">Recoverable</div>
+    <div class="value {{ 'pass' if case.decision.authorises_recovery else 'fail' }}">{{ case.computation.recoverable_amount.amount }}</div>
+    <div class="foot">{{ outcome_pill(case.decision.outcome.value) }}</div>
+  </div>
+</div>
+
+<h2>The programme's terms, and the eligibility they decided</h2>
+<div class="grid two">
+  <div class="panel">
+    <h3 style="margin-top:0">Terms</h3>
+    <dl class="kv">
+      <dt>currency</dt><dd>{{ case.program.currency.value }}</dd>
+      <dt>labour rate cap</dt><dd>{{ case.program.labour_rate_cap_per_hour }} per hour</dd>
+      <dt>deductible</dt><dd>{{ case.program.deductible }}</dd>
+      <dt>claim cap</dt><dd>{{ case.program.claim_cap }}</dd>
+      <dt>warranty</dt><dd>{{ case.program.warranty_months }} months from the in-service date</dd>
+    </dl>
+  </div>
+  <div class="panel">
+    <h3 style="margin-top:0">Eligibility</h3>
+    <dl class="kv">
+      <dt>within warranty</dt><dd>{{ case.assessment.within_warranty_period }}</dd>
+      <dt>part covered</dt><dd>{{ case.assessment.part_covered }}</dd>
+      <dt>serial in range</dt><dd>{{ case.assessment.serial_in_range }}</dd>
+      <dt>rate within cap</dt><dd>{{ case.assessment.labour_rate_within_cap }}</dd>
+      <dt>already recovered</dt><dd>{{ case.assessment.already_recovered }}</dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      Eligibility answers "was any of it ever covered". The requirement list answers "is the
+      paperwork in order". A claim can pass one and fail the other, and the gate needs both.
+    </p>
+  </div>
+</div>
+
+<h2>Checked against the generator</h2>
+<div class="panel">
+  {% if case.truth %}
+    <table>
+      <thead><tr><th>figure</th><th class="num">this system</th><th class="num">ground truth</th><th>agree?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>recoverable amount</td>
+          <td class="num">{{ case.computation.recoverable_amount.amount }} {{ case.computation.currency.value }}</td>
+          <td class="num">{{ case.truth.recoverable_amount }} {{ case.truth.currency }}</td>
+          <td>
+            {% if case.computation.recoverable_amount.amount | string == case.truth.recoverable_amount and case.computation.currency.value == case.truth.currency %}
+              <span class="pill ok">EXACT</span>
+            {% else %}
+              <span class="pill bad">DIFFERS</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note small" style="margin-bottom:0">
+      One case, shown for orientation. Kill condition F is graded over the whole corpus by
+      <code>tests/test_kill_criteria.py</code> from <code>artifacts/recovery.json</code>, at exact
+      <code>Decimal</code> equality with no tolerance, and the evaluation screen reports that count.
+      This row is not that measurement and does not stand in for it.
+    </p>
+  {% else %}
+    <div class="state">
+      <strong>No ground-truth record for this claim.</strong>
+      <p class="small">Run <code>make corpus</code> to regenerate <code>truth.json</code>.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endif %}
+{% endblock %}

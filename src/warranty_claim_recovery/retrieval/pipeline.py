@@ -2,7 +2,7 @@
 
 The order is fixed and it is the claim:
 
-    metadata filter, in SQL          program_id AND policy_version
+    metadata filter, in SQL          program_id AND policy_version AND is_current
       -> pgvector distance search    over the survivors, with the `<=>` operator
       -> the top k, with distances
 
@@ -33,16 +33,36 @@ about project 7's kill condition F. The rejection code is real signal, so it is 
 that gets embedded, where it competes with everything else in the clause corpus rather than
 short-circuiting the search.
 
-**What the filter deliberately does not do.** The committed corpus contains withdrawn service
-bulletins that share a programme **and** a policy version with the current ones, so the two
-predicates here do not exclude them and the statement can return a clause from a document that is no
-longer in force. That is recorded rather than fixed here, for two reasons. The retrieval order is
-predeclared and widening a predeclared stage is not a decision one module takes by itself; and in
-the committed corpus no clause of a withdrawn bulletin governs any rejection code, so a withdrawn
-clause is a distractor that competes for rank rather than an authority that could be cited as the
-basis of a satisfied requirement. `store.schema.DocumentRow.is_current` carries the fact through, so
-the stage that composes a correction can refuse to cite one, and so that raising the filter later is
-a one-line change to a predicate rather than a migration.
+**Why withdrawn documents are excluded here, and why the first version did not exclude them.**
+The committed corpus contains withdrawn service bulletins that share a programme **and** a policy
+version with the current ones, written to read almost exactly like the clauses that replaced them.
+They are excluded in the same statement that ranks, by `is_current`, which migration
+`0003_clause_is_current` copies onto the clause row under a composite foreign key so the copy cannot
+drift from the document it came from.
+
+The first version of this module left them in, deliberately, and argued it. The argument is kept
+because it was half right, and the half that was wrong is the instructive part:
+
+- **Right:** no clause of a withdrawn bulletin governs any rejection code — 0 of 36, measured — so a
+  withdrawn clause can never be the *authority* for a satisfied requirement under the rule
+  `domain.PolicyClause` states.
+- **Wrong:** "a distractor that competes for rank rather than an authority" assumed nothing
+  downstream would cite a clause merely for ranking first. Something did. The graph's authority rule
+  fell back to the top-ranked clause whenever no retrieved clause governed the code, and on the
+  development split 69 of 520 queries had a withdrawn clause at rank one. A resubmission could
+  therefore quote a bulletin whose own text says it has been withdrawn, as the basis of a
+  requirement it had marked satisfied — the correction a manufacturer rejects on sight, after the
+  window has run.
+
+So the rule is enforced in two layers that do not trust each other: a withdrawn document cannot be
+retrieved, and a clause that governs nothing cannot be cited as authority
+(`graph.nodes._governing_entry`, which now agrees with `evaluation.pipeline._authority`).
+
+**Why this is a current-state filter and not project 7's as-of filter.** Project 7 answered
+historical questions — what was the approved procedure on the day of an incident — and needed
+validity time. A resubmission is different: it is filed **now**, against the manufacturer's policy
+**as it stands now**, and the only bulletin that can support it is one currently in force. A
+withdrawn bulletin being correct on the day of the repair does not make it citable today.
 
 **Why the index is not asserted to be used.** ADR-001 §5 explains it: project 7 demanded a vector
 index scan in the plan and failed because its own metadata filter left so few candidate rows that
@@ -91,6 +111,7 @@ RETRIEVAL_STATEMENT: Final = (
     f"FROM {CLAUSE_TABLE}\n"
     "WHERE program_id = :program_id\n"
     "  AND policy_version = :policy_version\n"
+    "  AND is_current\n"
     "ORDER BY embedding <=> CAST(:query_vector AS vector)\n"
     "LIMIT :k"
 )

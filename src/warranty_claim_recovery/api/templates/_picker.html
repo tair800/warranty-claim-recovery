@@ -1,0 +1,27 @@
+{#
+  The case picker. A plain GET form, no JavaScript: the whole console is server-rendered and a
+  select that needed a script to navigate would be one more thing that can be broken in a way the
+  page does not show.
+
+  `groups` is the whole corpus on the case screen and one programme everywhere else. Seven hundred
+  and twenty <option> elements is sixty kilobytes, which belongs on the screen where a reader is
+  choosing a case and in front of nothing else.
+#}
+<form class="picker" method="get" action="{{ action }}">
+  <label for="claim" class="faint small">CASE</label>
+  <select id="claim" name="claim">
+    {% for group in groups %}
+      <optgroup label="{{ group.label }} · {{ group.program_id }}">
+        {% for id in group.claim_ids %}
+          <option value="{{ id }}" {% if id == claim_id %}selected{% endif %}>{{ id }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endfor %}
+  </select>
+  <button type="submit">Open</button>
+  {% if scoped %}
+    <span class="faint small">showing this programme only —
+      <a href="/{% if claim_id %}?claim={{ claim_id }}{% endif %}">choose from all {{ corpus_size }} cases</a>
+    </span>
+  {% endif %}
+</form>

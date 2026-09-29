@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "_states.html" import corpus_missing, no_case, case_problem, outcome_pill %}
+{% block title %}Case{% endblock %}
+
+{% block content %}
+{% if corpus_problem %}
+  {{ corpus_missing(corpus_problem) }}
+{% elif not case %}
+  {{ no_case() }}
+{% else %}
+
+<h2>Choose a case</h2>
+<div class="panel">
+  {% with action = "/", scoped = false %}{% include "_picker.html" %}{% endwith %}
+  <p class="note" style="margin-bottom:0">
+    {{ corpus_size }} rejected claims across the generated warranty programmes. Every one was built
+    from a committed seed with its intended outcome recorded, so a screen that disagrees with the
+    ground truth below is a finding rather than a mystery.
+  </p>
+</div>
+
+<h2>The claim</h2>
+<div class="grid two">
+  <div class="panel">
+    <h3 style="margin-top:0">Claim</h3>
+    <dl class="kv">
+      <dt>claim</dt><dd>{{ case.record.claim.claim_id }}</dd>
+      <dt>part</dt><dd>{{ case.record.claim.part_number }}</dd>
+      <dt>serial</dt><dd>{{ case.record.claim.serial_number or "— none recorded" }}</dd>
+      <dt>in service</dt><dd>{{ case.record.claim.in_service_date.isoformat() }}</dd>
+      <dt>failure</dt><dd>{{ case.record.claim.failure_date.isoformat() }}</dd>
+      <dt>invoiced</dt><dd>{{ case.record.claim.repair_invoice_date.isoformat() }}</dd>
+      <dt>claimed</dt><dd>{{ case.record.claim.claimed_total }}</dd>
+      <dt>identity</dt><dd>{{ case.record.claim.recovery_identity }}</dd>
+    </dl>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0">Rejection and window</h3>
+    <dl class="kv">
+      <dt>code</dt><dd><span class="pill bad">{{ case.record.claim.rejection_code.value }}</span></dd>
+      <dt>rejected on</dt><dd>{{ case.record.claim.rejected_on.isoformat() }}</dd>
+      {% if case.window %}
+        <dt>closes on</dt><dd>{{ case.window.closes_on.isoformat() }}</dd>
+        <dt>as of</dt><dd>{{ case.window.as_of.isoformat() }}</dd>
+        <dt>window</dt>
+        <dd>
+          {% if case.window.is_open %}
+            <span class="pill ok">OPEN</span> {{ case.window.days_remaining }} day(s) remaining
+          {% else %}
+            <span class="pill bad">CLOSED</span> {{ 0 - case.window.days_remaining }} day(s) ago
+          {% endif %}
+        </dd>
+      {% endif %}
+      <dt>programme</dt><dd>{{ case.program.program_id }}</dd>
+      <dt>manufacturer</dt><dd>{{ case.program.manufacturer }} · policy {{ case.program.policy_version }}</dd>
+      <dt>terms</dt>
+      <dd>
+        {{ case.program.warranty_months }} months cover ·
+        {{ case.program.correction_window_days }}-day correction window
+      </dd>
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      The window is half-open: a correction filed <em>on</em> the closing date is in time and one
+      filed the next day is not. Every date here is computed as of the corpus's recorded
+      <code>as_of</code>, never from a clock, so this screen says the same thing tomorrow.
+    </p>
+  </div>
+</div>
+
+{% if case.problem %}
+  <h2>Outcome</h2>
+  {{ case_problem(case.problem) }}
+{% else %}
+
+<h2>Outcome</h2>
+<div class="panel">
+  <div class="grid three" style="align-items:start">
+    <div>
+      <div class="label faint small" style="letter-spacing:.1em">COMPUTED BY THE GATE</div>
+      <div style="margin:8px 0">{{ outcome_pill(case.decision.outcome.value) }}</div>
+      <div class="mono" style="font-size:20px">{{ case.computation.recoverable_amount }}</div>
+      <div class="faint small">recoverable of {{ case.computation.claimed_total }} claimed</div>
+    </div>
+    <div>
+      <div class="label faint small" style="letter-spacing:.1em">RECORDED BY THE GENERATOR</div>
+      <div style="margin:8px 0">
+        {% if case.truth %}{{ outcome_pill(case.truth.outcome) }}{% else %}<span class="pill">{{ not_run }}</span>{% endif %}
+      </div>
+      <div class="mono" style="font-size:20px">
+        {% if case.truth %}{{ case.truth.recoverable_amount }} {{ case.truth.currency }}{% else %}{{ not_measured }}{% endif %}
+      </div>
+      <div class="faint small">construction metadata, not a label</div>
+    </div>
+    <div>
+      <div class="label faint small" style="letter-spacing:.1em">MONEY LEAVES THE SYSTEM</div>
+      <div style="margin:8px 0">
+        {% if case.decision.authorises_recovery %}
+          <span class="pill ok">YES — subject to approval</span>
+        {% else %}
+          <span class="pill bad">NO — withheld</span>
+        {% endif %}
+      </div>
+      <div class="faint small">
+        <code>gate.withholds_recovery</code> is the single definition of "withheld", shared by this
+        console, the evaluation and the queue.
+      </div>
+    </div>
+  </div>
+
+  <h3>Why</h3>
+  <blockquote class="quote">{{ case.decision.reason }}</blockquote>
+
+  {% if case.truth and case.truth.outcome != case.decision.outcome.value %}
+    <p class="note small">
+      The two outcomes differ and both withhold recovery. The gate answers a missing requirement
+      with <code>NOT_RECOVERABLE</code> — resubmitting now repeats the rejection the case exists to
+      answer — while the generator's rule records absent evidence as <code>REVIEW</code>. The
+      divergence is real, it is between two committed modules rather than a rendering artefact, and
+      it is shown rather than reconciled here because reconciling it on a screen is how a screen
+      comes to disagree with what is graded. Kill condition G counts false <em>recoveries</em>; a
+      refusal recorded under the other name is not one.
+    </p>
+  {% endif %}
+</div>
+
+<h2>The signals the gate read</h2>
+<div class="panel">
+  <p class="note">
+    Eleven inputs, not one of them a model output. They are recorded on the decision so that a
+    disagreement about an outcome is a disagreement about a number rather than about a judgement.
+  </p>
+  <table>
+    <thead><tr><th>signal</th><th>value</th><th>signal</th><th>value</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>window open</td><td class="num">{{ case.decision.signals.window_open }}</td>
+        <td>days remaining</td><td class="num">{{ case.decision.signals.days_remaining }}</td>
+      </tr>
+      <tr>
+        <td>within warranty period</td><td class="num">{{ case.decision.signals.within_warranty_period }}</td>
+        <td>part covered</td><td class="num">{{ case.decision.signals.part_covered }}</td>
+      </tr>
+      <tr>
+        <td>serial in range</td><td class="num">{{ case.decision.signals.serial_in_range }}</td>
+        <td>labour rate within cap</td><td class="num">{{ case.decision.signals.labour_rate_within_cap }}</td>
+      </tr>
+      <tr>
+        <td>requirements total</td><td class="num">{{ case.decision.signals.requirements_total }}</td>
+        <td>requirements satisfied</td><td class="num">{{ case.decision.signals.requirements_satisfied }}</td>
+      </tr>
+      <tr>
+        <td>requirements conflicting</td><td class="num">{{ case.decision.signals.requirements_conflicting }}</td>
+        <td>already recovered</td><td class="num">{{ case.decision.signals.already_recovered }}</td>
+      </tr>
+      <tr>
+        <td>recoverable is positive</td><td class="num">{{ case.decision.signals.recoverable_is_positive }}</td>
+        <td></td><td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2>How this case was built</h2>
+<div class="panel">
+  <dl class="kv">
+    <dt>split</dt>
+    <dd>
+      {{ case.record.split or "—" }}
+      {% if case.record.split == "holdout" %}<span class="pill warn">HOLD-OUT</span>{% endif %}
+    </dd>
+    <dt>construction</dt><dd>{{ case.record.construction or "—" }}</dd>
+    <dt>adversarial kind</dt><dd>{{ case.record.adversarial_kind or "—" }}</dd>
+  </dl>
+  <p class="note small" style="margin-bottom:0">
+    The hold-out is split by warranty programme and was frozen before anything was scored against
+    it. A claim-level split would measure how well the system memorised a policy it was tuned on.
+  </p>
+</div>
+
+{% endif %}
+{% endblock %}

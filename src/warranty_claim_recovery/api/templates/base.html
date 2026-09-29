@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Warranty Recovery Lab{% endblock %} — Warranty Recovery Lab</title>
+<style>
+/*
+  One stylesheet, inline, no build step. ADR-001 §3 records the divergence from the blueprint's
+  Next.js console: a build step that does not make the evidence on screen more legible is cost
+  without benefit, and nothing on these pages needs a component tree.
+
+  Dark by default because this is a console somebody reads for ten minutes in a room with a
+  projector. Identifiers are monospace throughout — a clause id, a claim id and a serial number are
+  strings a reader has to compare character by character, and a proportional face makes 0 and O the
+  same shape at the moment that matters.
+*/
+:root {
+  --ink: #e6e9ef;
+  --ink-dim: #9aa4b2;
+  --ink-faint: #6b7686;
+  --bg: #0e1116;
+  --panel: #161a21;
+  --panel-2: #1c212a;
+  --rule: #2a313d;
+  --accent: #6ea8fe;
+  --pass: #4ec9a0;
+  --fail: #ff7b72;
+  --warn: #e3b341;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 64px; }
+
+/* ---- banner ---- */
+.banner {
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 10px 20px;
+}
+.banner-inner {
+  max-width: 1180px; margin: 0 auto;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;
+}
+.verdict {
+  font: 700 13px/1 var(--mono);
+  letter-spacing: .08em;
+  padding: 6px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.verdict.pass { color: var(--pass); border-color: #24503f; background: #10241d; }
+.verdict.fail { color: var(--fail); border-color: #5a2a26; background: #26130f; }
+.verdict.unknown { color: var(--warn); border-color: #4d3f18; background: #211c0d; }
+.banner-label { font: 600 11px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+.banner-detail { color: var(--ink-dim); font-size: 13px; flex: 1 1 320px; }
+
+/* ---- header + nav ---- */
+header.site { border-bottom: 1px solid var(--rule); background: var(--panel-2); }
+.site-inner { max-width: 1180px; margin: 0 auto; padding: 18px 20px 0; }
+.site h1 { margin: 0 0 2px; font-size: 19px; letter-spacing: .01em; }
+.site .sub { color: var(--ink-dim); font-size: 13px; margin: 0 0 14px; }
+.env { font: 600 11px/1 var(--mono); color: var(--ink-faint); }
+.env .chip {
+  display: inline-block; padding: 3px 7px; margin-left: 6px;
+  border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-dim);
+}
+nav { display: flex; flex-wrap: wrap; gap: 2px; }
+nav a {
+  padding: 9px 14px; font: 600 12px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-dim); border: 1px solid transparent; border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+nav a:hover { color: var(--ink); text-decoration: none; background: #20262f; }
+nav a.on { color: var(--ink); background: var(--bg); border-color: var(--rule); }
+
+/* ---- structure ---- */
+h2 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); margin: 32px 0 10px; }
+h3 { font-size: 14px; margin: 20px 0 8px; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; }
+.panel + .panel { margin-top: 12px; }
+.grid { display: grid; gap: 12px; }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.grid.three { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.mono, code { font-family: var(--mono); font-size: 13px; }
+.dim { color: var(--ink-dim); }
+.faint { color: var(--ink-faint); }
+.small { font-size: 12.5px; }
+p.note { color: var(--ink-dim); font-size: 13px; max-width: 78ch; }
+
+/* ---- key/value ---- */
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+dl.kv dt { color: var(--ink-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+dl.kv dd { margin: 0; font-family: var(--mono); font-size: 13px; word-break: break-word; }
+
+/* ---- tables ---- */
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--ink-faint); font: 600 11px/1.4 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+td.num, th.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+tr.total td { border-top: 2px solid var(--rule); border-bottom: none; font-weight: 700; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---- tiles ---- */
+.tile { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; }
+.tile .label { font: 600 11px/1.3 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+.tile .value { font: 700 34px/1.15 var(--mono); margin: 8px 0 4px; }
+.tile .value.pass { color: var(--pass); }
+.tile .value.fail { color: var(--fail); }
+.tile .value.unknown { color: var(--warn); font-size: 22px; }
+.tile .foot { font-size: 12px; color: var(--ink-dim); }
+.tile.headline { border-color: #4d3f18; }
+
+/* ---- status pills ---- */
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font: 700 11px/1.6 var(--mono); letter-spacing: .04em; border: 1px solid var(--rule); color: var(--ink-dim);
+}
+.pill.ok { color: var(--pass); border-color: #24503f; background: #10241d; }
+.pill.bad { color: var(--fail); border-color: #5a2a26; background: #26130f; }
+.pill.warn { color: var(--warn); border-color: #4d3f18; background: #211c0d; }
+
+/* ---- quotes and plans ---- */
+blockquote.quote {
+  margin: 8px 0 0; padding: 10px 12px; border-left: 3px solid var(--rule);
+  background: var(--panel-2); font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+  white-space: pre-wrap; word-break: break-word;
+}
+pre.sql {
+  margin: 8px 0 0; padding: 12px; overflow-x: auto; background: var(--panel-2);
+  border: 1px solid var(--rule); border-radius: 4px; font-family: var(--mono); font-size: 12.5px;
+}
+
+/* ---- states ---- */
+.state { border: 1px dashed var(--rule); border-radius: 6px; padding: 22px; text-align: center; color: var(--ink-dim); }
+.state strong { display: block; color: var(--ink); margin-bottom: 6px; font-size: 14px; }
+.state.error { border-color: #5a2a26; background: #1a1110; }
+
+/* ---- picker ---- */
+form.picker { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+select, button {
+  font: 13px/1.2 var(--mono); color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 8px 10px;
+}
+button { cursor: pointer; font-family: var(--sans); font-weight: 600; }
+button:hover { border-color: var(--accent); color: var(--ink); }
+button[aria-busy="true"] { opacity: .6; cursor: progress; }
+
+footer.site {
+  margin-top: 40px; border-top: 1px solid var(--rule); background: var(--panel);
+  color: var(--ink-faint); font-size: 12px;
+}
+footer.site .inner { max-width: 1180px; margin: 0 auto; padding: 16px 20px; }
+footer.site strong { color: var(--warn); letter-spacing: .06em; }
+</style>
+</head>
+<body>
+
+<!--
+  The banner carries the release-gate verdict on every screen and is read from
+  artifacts/release_gate.json by `release_gate_banner()`. It is never written into this template:
+  a hard-coded verdict is a verdict that stays green after the gate goes red.
+-->
+<div class="banner">
+  <div class="banner-inner">
+    <span class="banner-label">Release gate</span>
+    <span class="verdict {{ banner.tone }}">{{ banner.verdict }}</span>
+    <span class="banner-detail">{{ banner.detail or "Reported from artifacts/release_gate.json. This console reports the verdict and never computes one." }}</span>
+  </div>
+</div>
+
+<header class="site">
+  <div class="site-inner">
+    <h1>Warranty Recovery Lab</h1>
+    <p class="sub">
+      A rejected warranty claim, the evidence behind it, and the money — read-only.
+      <span class="env">
+        <span class="chip">env {{ header.environment }}</span>
+        <span class="chip">{% if header.read_only %}read-only{% else %}mutations enabled{% endif %}</span>
+      </span>
+    </p>
+    <nav>
+      <a href="/{% if claim_id %}?claim={{ claim_id }}{% endif %}" class="{{ 'on' if active == 'case' }}">Case</a>
+      <a href="/evidence{% if claim_id %}?claim={{ claim_id }}{% endif %}" class="{{ 'on' if active == 'evidence' }}">Evidence</a>
+      <a href="/recovery{% if claim_id %}?claim={{ claim_id }}{% endif %}" class="{{ 'on' if active == 'recovery' }}">Recovery</a>
+      <a href="/evaluation" class="{{ 'on' if active == 'evaluation' }}">Evaluation</a>
+      <a href="/audit" class="{{ 'on' if active == 'audit' }}">Audit</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site">
+  <div class="inner">
+    <strong>SYNTHETIC CORPUS.</strong>
+    {{ synthetic_notice }}
+  </div>
+</footer>
+
+</body>
+</html>

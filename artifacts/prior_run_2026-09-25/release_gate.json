@@ -1,0 +1,284 @@
+{
+  "is_synthetic_corpus": true,
+  "what_this_is": "the verdict on ADR-001 §5's thirteen predeclared kill conditions and the hold-out precondition, read from the committed artifacts by scripts/release_gate.py",
+  "verdict": "FAILED",
+  "detail": "failed: J; not graded or graded over nothing: A, B, C, D, E",
+  "failed": [
+    "J"
+  ],
+  "not_graded_or_vacuous": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "thresholds": {
+    "MAX_RESUME_NODE_DIVERGENCES": 0,
+    "MAX_TOOL_REEXECUTIONS": 0,
+    "MAX_LOST_HUMAN_DECISIONS": 0,
+    "MAX_UNAPPROVED_SUBMISSIONS": 0,
+    "EXACT_SUBMISSION_EFFECTS_PER_IDENTITY": 1,
+    "MAX_DUPLICATE_SUBMISSIONS": 0,
+    "MIN_CONCURRENT_ATTEMPTS": 16,
+    "MAX_AMOUNT_MISMATCHES": 0,
+    "MAX_FALSE_RECOVERIES": 0,
+    "MAX_UNGROUNDED_REQUIREMENTS": 0,
+    "MAX_UNFAITHFUL_CITATIONS": 0,
+    "MIN_HOLDOUT_RECALL_AT_5": 0.85,
+    "RETRIEVAL_K": 5,
+    "REQUIRED_DISTANCE_OPERATOR": "<=>",
+    "MAX_DOUBLE_LEASES_WITHOUT_REDIS": 0,
+    "MAX_SUBMISSIONS_WITHOUT_REDIS": 0,
+    "MAX_RESUBMISSIONS_AFTER_WINDOW_CLOSED": 0,
+    "MIN_DENOMINATOR": 1
+  },
+  "threshold_source": "quoted from ADR-001 §5 and restated here rather than imported from tests/test_kill_criteria.py, which is predeclared. tests/test_evaluation.py asserts the two tables agree by parsing the kill test's source.",
+  "vacuity_guard": "a criterion whose denominator is below 1 is reported VACUOUS and this script exits non-zero. A criterion that could not have failed is not a criterion, and reporting one as a pass is worse than reporting a failure.",
+  "exit_code_policy": "zero when this script graded every criterion, including when the answer is no; 2 when any criterion was graded over nothing or its artifact was absent. A missed threshold fails the build through tests/test_kill_criteria.py, which is predeclared and imports nothing from this repository.",
+  "criteria": [
+    {
+      "letter": "A",
+      "verdict": "NOT_GRADED",
+      "artifact": "durability.json",
+      "fails_if": "a resumed case continues at a different node from the checkpoint's",
+      "graded_over": "every killed case, every node",
+      "denominator_key": "cases_killed",
+      "denominator": null,
+      "note": "artifacts/durability.json is absent or unreadable, so nothing graded this criterion",
+      "checks": []
+    },
+    {
+      "letter": "B",
+      "verdict": "NOT_GRADED",
+      "artifact": "durability.json",
+      "fails_if": "a tool that completed before the kill runs again after the resume",
+      "graded_over": "every killed case",
+      "denominator_key": "tool_invocations_observed",
+      "denominator": null,
+      "note": "artifacts/durability.json is absent or unreadable, so nothing graded this criterion",
+      "checks": []
+    },
+    {
+      "letter": "C",
+      "verdict": "NOT_GRADED",
+      "artifact": "durability.json",
+      "fails_if": "a human decision recorded before the kill is absent after the resume",
+      "graded_over": "every killed case",
+      "denominator_key": "human_decisions_before_kill",
+      "denominator": null,
+      "note": "artifacts/durability.json is absent or unreadable, so nothing graded this criterion",
+      "checks": []
+    },
+    {
+      "letter": "D",
+      "verdict": "NOT_GRADED",
+      "artifact": "submission.json",
+      "fails_if": "a submission appears with no approval for the same case and the same version",
+      "graded_over": "whole corpus",
+      "denominator_key": "submissions_observed",
+      "denominator": null,
+      "note": "artifacts/submission.json is absent or unreadable, so nothing graded this criterion",
+      "checks": []
+    },
+    {
+      "letter": "E",
+      "verdict": "NOT_GRADED",
+      "artifact": "submission.json",
+      "fails_if": "concurrent identical submissions produce more than one submission effect",
+      "graded_over": "at least 16 concurrent attempts per identity",
+      "denominator_key": "identities_raced",
+      "denominator": null,
+      "note": "artifacts/submission.json is absent or unreadable, so nothing graded this criterion",
+      "checks": []
+    },
+    {
+      "letter": "F",
+      "verdict": "PASSED",
+      "artifact": "recovery.json",
+      "fails_if": "a computed recoverable amount differs from the generator's ground truth",
+      "graded_over": "whole corpus",
+      "denominator_key": "cases_scored",
+      "denominator": 720,
+      "note": null,
+      "checks": [
+        {
+          "measured": "amount_mismatches=0 <= 0",
+          "passed": true
+        },
+        {
+          "measured": "amount_exact_match_rate=1.0 == 1.0",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "G",
+      "verdict": "PASSED",
+      "artifact": "recovery.json",
+      "fails_if": "a case is authorised whose ground truth is NOT_RECOVERABLE — a false recovery",
+      "graded_over": "hold-out",
+      "denominator_key": "holdout_not_recoverable_cases",
+      "denominator": 50,
+      "note": null,
+      "checks": [
+        {
+          "measured": "holdout_false_recoveries=0 <= 0",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "H",
+      "verdict": "PASSED",
+      "artifact": "groundedness.json",
+      "fails_if": "a requirement is reported satisfied with no citation",
+      "graded_over": "whole corpus",
+      "denominator_key": "requirements_marked_satisfied",
+      "denominator": 1230,
+      "note": null,
+      "checks": [
+        {
+          "measured": "requirements_satisfied_without_citation=0 <= 0",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "I",
+      "verdict": "PASSED",
+      "artifact": "groundedness.json",
+      "fails_if": "a cited span is not verbatim at its recorded offsets in the version it names",
+      "graded_over": "whole corpus",
+      "denominator_key": "citations_checked",
+      "denominator": 1230,
+      "note": null,
+      "checks": [
+        {
+          "measured": "unfaithful_citations=0 <= 0",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "J",
+      "verdict": "FAILED",
+      "artifact": "retrieval.json",
+      "fails_if": "hold-out recall@5 is below the floor, or is not strictly above every baseline",
+      "graded_over": "hold-out",
+      "denominator_key": "holdout_queries",
+      "denominator": 200,
+      "note": null,
+      "checks": [
+        {
+          "measured": "k=5 == 5",
+          "passed": true
+        },
+        {
+          "measured": "system.recall_at_k=0.99 >= 0.85",
+          "passed": true
+        },
+        {
+          "measured": "system.recall_at_k=0.99 against the best baseline bm25_only=1.0",
+          "passed": false
+        }
+      ]
+    },
+    {
+      "letter": "K",
+      "verdict": "PASSED",
+      "artifact": "pgvector.json",
+      "fails_if": "the dense stage does not use the pgvector operator, by the server's own plan",
+      "graded_over": "live PostgreSQL",
+      "denominator_key": "statements_explained",
+      "denominator": 8,
+      "note": null,
+      "checks": [
+        {
+          "measured": "extension_installed=True is true",
+          "passed": true
+        },
+        {
+          "measured": "column_is_vector_type=True is true",
+          "passed": true
+        },
+        {
+          "measured": "executed_statement contains '<=>'",
+          "passed": true
+        },
+        {
+          "measured": "explain_uses_distance_operator=True is true",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "L",
+      "verdict": "PASSED",
+      "artifact": "redis.json",
+      "fails_if": "with Redis unavailable a case is leased twice or a submission proceeds",
+      "graded_over": "failure injection",
+      "denominator_key": "injections",
+      "denominator": 16,
+      "note": null,
+      "checks": [
+        {
+          "measured": "double_leases_without_redis=0 <= 0",
+          "passed": true
+        },
+        {
+          "measured": "submissions_without_redis=0 <= 0",
+          "passed": true
+        },
+        {
+          "measured": "queue_is_load_bearing=True is true",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "M",
+      "verdict": "PASSED",
+      "artifact": "recovery.json",
+      "fails_if": "a case is resubmitted after the manufacturer's claim window closed",
+      "graded_over": "whole corpus",
+      "denominator_key": "cases_with_a_closed_window",
+      "denominator": 54,
+      "note": null,
+      "checks": [
+        {
+          "measured": "resubmissions_after_window_closed=0 <= 0",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "letter": "H/O",
+      "verdict": "PASSED",
+      "artifact": "holdout.json",
+      "fails_if": "the hold-out is not frozen, is split by the wrong unit, or has leaked",
+      "graded_over": "precondition for G and J",
+      "denominator_key": "programs_total",
+      "denominator": 18,
+      "note": null,
+      "checks": [
+        {
+          "measured": "split_unit='warranty_program' == 'warranty_program'",
+          "passed": true
+        },
+        {
+          "measured": "leaked_programs=0 == 0",
+          "passed": true
+        },
+        {
+          "measured": "leaked_cases=0 == 0",
+          "passed": true
+        },
+        {
+          "measured": "digest_matches_corpus=True is true",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}

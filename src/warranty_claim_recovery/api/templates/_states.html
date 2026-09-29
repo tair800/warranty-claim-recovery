@@ -1,0 +1,59 @@
+{#
+  The two empty states every case-scoped screen shares.
+
+  They are a shared partial rather than three copies because an empty state that differs between
+  screens is an empty state a reader reads as a different problem. Both name the command that fixes
+  them: a console that says "no corpus" and stops has told the reviewer nothing they can act on.
+#}
+{% macro corpus_missing(problem) %}
+  <div class="state error">
+    <strong>The generated corpus could not be read.</strong>
+    <p class="small">
+      The case screens read <code>data/generated/*.json</code> directly and need no database.
+      Run <code>make corpus</code> to rebuild it from its committed seed.
+    </p>
+    <p class="small faint">
+      Reported fault: <code>{{ problem or "unknown" }}</code>.
+      Only the exception's type is shown here; the full message is in the process log, because a
+      connection or path message routinely carries credentials and this page is public.
+    </p>
+  </div>
+{% endmacro %}
+
+{% macro no_case() %}
+  <div class="state">
+    <strong>No case selected.</strong>
+    <p class="small">The corpus loaded but holds no claims, so there is nothing to show.</p>
+  </div>
+{% endmacro %}
+
+{% macro case_problem(problem) %}
+  <div class="state error">
+    <strong>This case cannot be priced.</strong>
+    <p class="small">{{ problem }}</p>
+    <p class="small faint">
+      The claim and the programme are shown above. A refusal is the honest answer here: a converted
+      or defaulted amount would look exact and would already be wrong.
+    </p>
+  </div>
+{% endmacro %}
+
+{% macro outcome_pill(outcome) %}
+  {% if outcome in ("RECOVERABLE", "PARTIALLY_RECOVERABLE") %}
+    <span class="pill ok">{{ outcome }}</span>
+  {% elif outcome == "REVIEW" %}
+    <span class="pill warn">{{ outcome }}</span>
+  {% else %}
+    <span class="pill bad">{{ outcome }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro status_pill(status) %}
+  {% if status == "SATISFIED" %}
+    <span class="pill ok">{{ status }}</span>
+  {% elif status == "CONFLICTING" %}
+    <span class="pill warn">{{ status }}</span>
+  {% else %}
+    <span class="pill bad">{{ status }}</span>
+  {% endif %}
+{% endmacro %}

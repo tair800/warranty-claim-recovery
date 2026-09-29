@@ -25,6 +25,16 @@ not address its own text cannot produce a faithful citation later no matter what
 so it is rejected at the boundary, where the error can name the clause and the document. Kill
 condition I is then a confirmation that the boundary held rather than a discovery that it did not.
 
+**It writes every clause with its document's currency, and it does not fingerprint that currency.**
+The retrieval statement filters on `clause.is_current`, so a clause written with the wrong value is
+a withdrawn bulletin made citable or a current one made invisible. The value is taken from the
+document record at write time, and the database's composite foreign key refuses a row whose value
+disagrees with its document. It is deliberately **not** folded into `clause_fingerprint`: a
+withdrawal changes no text, and a fingerprint that moved with it would re-embed every clause of a
+withdrawn bulletin to produce vectors identical to the ones already stored. The document's own
+fingerprint does include it, the document row is rewritten, and `ON UPDATE CASCADE` carries the
+change to the clauses in the same statement.
+
 Rejected: `ON CONFLICT DO NOTHING` for the clause upsert. It is the shorter statement and it turns
 the model-swap case into a silent no-op — the row exists, so nothing is written, so the stale vector
 survives a rerun that was specifically intended to replace it.
@@ -84,18 +94,18 @@ class DocumentRecord(NamedTuple):
     `text` is the exact string every offset in the corpus indexes into. It is never stripped,
     re-wrapped or normalised anywhere on this path; see `store.schema.DocumentRow`.
 
-    `kind`, `is_current` and `superseded_by` are provenance that the store carries through rather
-    than uses. The corpus contains withdrawn service bulletins that share a programme and a policy
-    version with the current ones, and a stage that composes a correction has to be able to tell
-    that a document was withdrawn. Dropping the flag at the loader because this module has no use
-    for it would make that impossible downstream, and the information would then have to be
-    recovered by re-reading the generated files — which is how a database and the corpus that filled
-    it come to disagree.
+    `kind` and `superseded_by` are provenance the store carries through. `is_current` is no longer
+    provenance: the retrieval statement excludes every clause of a document that is not current, in
+    the same statement that ranks, so this flag decides what can be cited. The corpus contains a
+    withdrawn service bulletin per programme that shares a programme and a policy version with the
+    current one and says almost the same thing, and this flag is the only thing that tells them
+    apart.
 
-    They default rather than being required, because a record that says nothing about supersession
-    is a record for which no supersession is known. The default is provenance and not a gate:
-    nothing in this package decides anything on `is_current`, so whichever module first does will
-    have to decide there what a missing value means.
+    The fields keep their defaults for a record built in code, where the call site is a line a
+    reviewer reads. A record read from a **file** is different, and `read_documents` requires the
+    flag by name and as a JSON boolean: a corpus exported without it, or with the string `"false"`
+    — which `bool()` reads as true — would otherwise publish every withdrawn bulletin as current,
+    and nothing downstream could tell.
 
     `split` is deliberately **not** read. The generator marks each document with its hold-out
     membership, and a `split` column in the deployment database would make that membership readable
@@ -202,6 +212,25 @@ def _clause_fields(entry: Mapping[str, Any]) -> tuple[Mapping[str, Any], Any]:
     return entry, entry.get("policy_version")
 
 
+def _currency(entry: Mapping[str, Any], path: Path, index: int) -> bool:
+    """The document's `is_current`, required by name and refused unless it is a JSON boolean.
+
+    Required, because the retrieval statement now decides on it and a default is a decision taken
+    for every document that did not say. Refused unless boolean, because the permissive reading is
+    `bool(value)`, and `bool("false")` is `True`: a corpus whose flags were serialised as strings
+    would load every withdrawn bulletin as current, and the only symptom would be a correction that
+    quotes a withdrawn authority.
+    """
+    value = _required(entry, "is_current", path, index)
+    if not isinstance(value, bool):
+        raise CorpusShapeError(
+            f"{path}: entry {index} has is_current={value!r} ({type(value).__name__}). It must be "
+            f"a JSON true or false; a string or a number here would be read by truthiness, and the "
+            f"string 'false' is truthy."
+        )
+    return value
+
+
 def read_documents(path: Path) -> dict[str, DocumentRecord]:
     """Read `documents.json`, keyed by document id.
 
@@ -219,7 +248,7 @@ def read_documents(path: Path) -> dict[str, DocumentRecord]:
             title=str(entry.get("title") or _required(entry, "document_id", path, index)),
             text=str(_required(entry, "text", path, index)),
             kind=str(entry.get("kind") or "policy"),
-            is_current=bool(entry.get("is_current", True)),
+            is_current=_currency(entry, path, index),
             superseded_by=(
                 str(entry["superseded_by"]) if entry.get("superseded_by") is not None else None
             ),
@@ -344,6 +373,9 @@ def clause_fingerprint(loadable: LoadableClause) -> str:
     `governs` is sorted before hashing. The set of governed codes is what matters; a generator that
     emitted them in a different order between runs would otherwise invalidate every clause and force
     a full re-embed that changed no vector.
+
+    The document's currency is absent on purpose. The module docstring gives the reason: it is
+    carried to the clause by the foreign key, and fingerprinting it would re-embed unchanged text.
     """
     clause = loadable.clause
     return _digest(
@@ -382,6 +414,17 @@ def load_corpus(
     """
     if batch_size < 1:
         raise ValueError(f"batch_size={batch_size} would make no progress")
+    orphans = sorted(
+        {item.clause.document_id for item in clauses if item.clause.document_id not in documents}
+    )
+    if orphans:
+        # Refused before anything is written. The clause row needs its document's currency, and a
+        # clause whose document was not handed over has no currency this function could state
+        # without guessing — and a guess of "current" is the defect migration 0003 closed.
+        raise CorpusShapeError(
+            f"{len(orphans)} document(s) are cited by clauses and were not supplied: "
+            f"{orphans[:5]}. A clause cannot be written without its document's currency."
+        )
 
     documents_written = _write_documents(session, documents)
 
@@ -398,7 +441,8 @@ def load_corpus(
     for batch in _batched(stale, batch_size):
         vectors = encoder.encode_passages([loadable.clause.text for loadable in batch])
         for loadable, vector in zip(batch, vectors, strict=True):
-            session.execute(_clause_upsert(loadable, vector))
+            is_current = documents[loadable.clause.document_id].is_current
+            session.execute(_clause_upsert(loadable, vector, is_current=is_current))
         session.commit()
         embedded += len(batch)
 
@@ -441,13 +485,21 @@ def _write_documents(session: Session, documents: Mapping[str, DocumentRecord]) 
     return written
 
 
-def _clause_upsert(loadable: LoadableClause, vector: Sequence[float]) -> Any:
+def _clause_upsert(loadable: LoadableClause, vector: Sequence[float], *, is_current: bool) -> Any:
+    """One clause's upsert, carrying its document's currency.
+
+    `is_current` is keyword-only and has no default. A positional boolean at the end of a call is
+    the argument a later edit transposes, and a default would be the guess `ClauseRow.is_current`
+    refuses to make. The composite foreign key checks the value against the document row this run
+    has just written, so a wrong one fails here, loudly, rather than at citation time.
+    """
     clause = loadable.clause
     statement = insert(ClauseRow).values(
         clause_id=clause.clause_id,
         program_id=clause.program_id,
         policy_version=loadable.policy_version,
         document_id=clause.document_id,
+        is_current=is_current,
         section=clause.section,
         text=clause.text,
         start_offset=clause.start_offset,

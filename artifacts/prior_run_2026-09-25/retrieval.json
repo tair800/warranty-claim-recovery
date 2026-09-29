@@ -1,0 +1,311 @@
+{
+  "is_synthetic_corpus": true,
+  "notice": "Every figure here was measured over a synthetic corpus generated from a committed seed. It describes no real warranty programme and no manufacturer's policy, and the rates mean nothing outside this corpus.",
+  "what_this_is": "kill condition J: hold-out recall at k for the governing clause, against the four baselines ADR-001 §6 predeclared, each of which removes or replaces a component of the retrieval stage itself",
+  "graded_by": "tests/test_kill_criteria.py",
+  "k": 5,
+  "holdout_queries": 200,
+  "development_queries": 520,
+  "system": {
+    "name": "warranty-claim-recovery",
+    "description": "dense retrieval in pgvector with the manufacturer and policy-version filter applied in the same statement, before ranking",
+    "queries": 200,
+    "recall_at_k": 0.99,
+    "hits": 198,
+    "misses": 2,
+    "recall": {
+      "numerator": 198,
+      "denominator": 200,
+      "rate": 0.99,
+      "defined": true
+    },
+    "mean_reciprocal_rank": 0.7865,
+    "ndcg_at_k": 0.838666,
+    "rank_histogram": {
+      "1": 124,
+      "2": 57,
+      "3": 9,
+      "4": 4,
+      "5": 4
+    }
+  },
+  "baselines": {
+    "exact_code_lookup": {
+      "name": "exact_code_lookup",
+      "description": "resolve the governing clause by an exact rejection-code to clause-id table lookup over the policy document, with no text search at all",
+      "queries": 200,
+      "recall_at_k": 0.85,
+      "hits": 170,
+      "misses": 30,
+      "recall": {
+        "numerator": 170,
+        "denominator": 200,
+        "rate": 0.85,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.85,
+      "ndcg_at_k": 0.85,
+      "rank_histogram": {
+        "1": 170,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    },
+    "bm25_only": {
+      "name": "bm25_only",
+      "description": "lexical BM25 over the same clause corpus behind the same manufacturer and policy-version filter, with no embeddings",
+      "queries": 200,
+      "recall_at_k": 1.0,
+      "hits": 200,
+      "misses": 0,
+      "recall": {
+        "numerator": 200,
+        "denominator": 200,
+        "rate": 1.0,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.975,
+      "ndcg_at_k": 0.981546,
+      "rank_histogram": {
+        "1": 190,
+        "2": 10,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    },
+    "dense_no_metadata": {
+      "name": "dense_no_metadata",
+      "description": "the same embeddings over the same corpus with no manufacturer or policy-version filter, so every manufacturer's clauses compete for the top k",
+      "queries": 200,
+      "recall_at_k": 0.34,
+      "hits": 68,
+      "misses": 132,
+      "recall": {
+        "numerator": 68,
+        "denominator": 200,
+        "rate": 0.34,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.171917,
+      "ndcg_at_k": 0.213244,
+      "rank_histogram": {
+        "1": 17,
+        "2": 18,
+        "3": 10,
+        "4": 9,
+        "5": 14
+      }
+    },
+    "first_clause_of_policy": {
+      "name": "first_clause_of_policy",
+      "description": "always the first clause of the programme's policy document, whatever was asked",
+      "queries": 200,
+      "recall_at_k": 0.0,
+      "hits": 0,
+      "misses": 200,
+      "recall": {
+        "numerator": 0,
+        "denominator": 200,
+        "rate": 0.0,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.0,
+      "ndcg_at_k": 0.0,
+      "rank_histogram": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    }
+  },
+  "beats_every_baseline": false,
+  "best_baseline_recall_at_k": 1.0,
+  "margin_over_best_baseline": -0.01,
+  "baseline_note": "each baseline differs in the retrieval stage. ADR-001 §5 records why: project 7's equivalent criterion required beating a baseline that removed only a downstream component and therefore ran the identical retriever, which was an impossible target and a defect in the criterion rather than in the system.",
+  "development": {
+    "system": {
+      "name": "warranty-claim-recovery",
+      "description": "dense retrieval in pgvector with the manufacturer and policy-version filter applied in the same statement, before ranking",
+      "queries": 520,
+      "recall_at_k": 0.992308,
+      "hits": 516,
+      "misses": 4,
+      "recall": {
+        "numerator": 516,
+        "denominator": 520,
+        "rate": 0.992308,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.760962,
+      "ndcg_at_k": 0.819697,
+      "rank_histogram": {
+        "1": 310,
+        "2": 117,
+        "3": 66,
+        "4": 12,
+        "5": 11
+      }
+    },
+    "baselines": {
+      "exact_code_lookup": {
+        "name": "exact_code_lookup",
+        "description": "resolve the governing clause by an exact rejection-code to clause-id table lookup over the policy document, with no text search at all",
+        "queries": 520,
+        "recall_at_k": 0.85,
+        "hits": 442,
+        "misses": 78,
+        "recall": {
+          "numerator": 442,
+          "denominator": 520,
+          "rate": 0.85,
+          "defined": true
+        },
+        "mean_reciprocal_rank": 0.85,
+        "ndcg_at_k": 0.85,
+        "rank_histogram": {
+          "1": 442,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        }
+      },
+      "bm25_only": {
+        "name": "bm25_only",
+        "description": "lexical BM25 over the same clause corpus behind the same manufacturer and policy-version filter, with no embeddings",
+        "queries": 520,
+        "recall_at_k": 1.0,
+        "hits": 520,
+        "misses": 0,
+        "recall": {
+          "numerator": 520,
+          "denominator": 520,
+          "rate": 1.0,
+          "defined": true
+        },
+        "mean_reciprocal_rank": 0.975,
+        "ndcg_at_k": 0.981546,
+        "rank_histogram": {
+          "1": 494,
+          "2": 26,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        }
+      },
+      "dense_no_metadata": {
+        "name": "dense_no_metadata",
+        "description": "the same embeddings over the same corpus with no manufacturer or policy-version filter, so every manufacturer's clauses compete for the top k",
+        "queries": 520,
+        "recall_at_k": 0.411538,
+        "hits": 214,
+        "misses": 306,
+        "recall": {
+          "numerator": 214,
+          "denominator": 520,
+          "rate": 0.411538,
+          "defined": true
+        },
+        "mean_reciprocal_rank": 0.224135,
+        "ndcg_at_k": 0.27012,
+        "rank_histogram": {
+          "1": 70,
+          "2": 36,
+          "3": 33,
+          "4": 51,
+          "5": 24
+        }
+      },
+      "first_clause_of_policy": {
+        "name": "first_clause_of_policy",
+        "description": "always the first clause of the programme's policy document, whatever was asked",
+        "queries": 520,
+        "recall_at_k": 0.0,
+        "hits": 0,
+        "misses": 520,
+        "recall": {
+          "numerator": 0,
+          "denominator": 520,
+          "rate": 0.0,
+          "defined": true
+        },
+        "mean_reciprocal_rank": 0.0,
+        "ndcg_at_k": 0.0,
+        "rank_histogram": {
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        }
+      }
+    },
+    "candidate_profile": {
+      "queries": 520,
+      "k": 5,
+      "median_candidates": 15.0,
+      "p95_candidates": 15,
+      "min_candidates": 15,
+      "max_candidates": 15,
+      "queries_with_at_most_k_candidates": {
+        "numerator": 0,
+        "denominator": 520,
+        "rate": 0.0,
+        "defined": true
+      },
+      "ranking_can_change_recall": true,
+      "verdict": "the median query has 15.0 candidates against k=5, so the ranker chooses which 5 of them are returned and recall at k is a measurement of the ranking"
+    }
+  },
+  "development_note": "published beside the hold-out and graded by nothing. Nothing was tuned against the hold-out after it was scored; the development figures are here so a reader can see whether the two populations behave alike.",
+  "diagnostics": {
+    "code_lookup_ceiling": {
+      "name": "code_lookup_ceiling",
+      "description": "DIAGNOSTIC, not one of ADR-001 §6's four: every clause of the programme governing the rejection code, which is the ceiling a code-keyed set lookup would reach and shows how much of exact_code_lookup's gap is the service bulletin's amendment",
+      "queries": 200,
+      "recall_at_k": 1.0,
+      "hits": 200,
+      "misses": 0,
+      "recall": {
+        "numerator": 200,
+        "denominator": 200,
+        "rate": 1.0,
+        "defined": true
+      },
+      "mean_reciprocal_rank": 0.925,
+      "ndcg_at_k": 0.944639,
+      "rank_histogram": {
+        "1": 170,
+        "2": 30,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    }
+  },
+  "diagnostic_note": "not baselines and not graded. ADR-001 §6 fixed four baselines before any score existed, and anything measured afterwards is a diagnostic however interesting it is.",
+  "candidate_profile": {
+    "queries": 200,
+    "k": 5,
+    "median_candidates": 15.0,
+    "p95_candidates": 15,
+    "min_candidates": 15,
+    "max_candidates": 15,
+    "queries_with_at_most_k_candidates": {
+      "numerator": 0,
+      "denominator": 200,
+      "rate": 0.0,
+      "defined": true
+    },
+    "ranking_can_change_recall": true,
+    "verdict": "the median query has 15.0 candidates against k=5, so the ranker chooses which 5 of them are returned and recall at k is a measurement of the ranking"
+  },
+  "candidate_profile_verdict": "the median query has 15.0 candidates against k=5, so the ranker chooses which 5 of them are returned and recall at k is a measurement of the ranking",
+  "ranking_can_change_recall": true,
+  "why_the_candidate_profile_is_here": "project 7's retrieval criterion was saturated by construction: its metadata filter left so few candidates that every one of them fitted inside k, recall could not move whatever the ranker did, and the figure published was a property of the WHERE clause. Nothing in that artifact said how many candidates there had been, so nobody noticed until after the scoring. If the median here is at or below k, this criterion is measuring the filter and not the ranker, and the verdict above says so in words."
+}

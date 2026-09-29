@@ -1,0 +1,19 @@
+{
+  "approvals_observed": 14,
+  "concurrent_attempts_per_identity": 24,
+  "duplicate_submissions": 0,
+  "events_examined": 317,
+  "graded_by": "warranty_claim_recovery.audit.verify_submissions",
+  "identities_raced": 3,
+  "is_synthetic_corpus": true,
+  "max_effects_for_one_identity": 1,
+  "notice": "Submission control measured over the committed synthetic corpus. The claims, policies and manufacturers do not exist and the manufacturer portal is a local mock; ADR-001 \u00a78 records that the idempotency guarantee is about this system's own effects.",
+  "offending_cases": [],
+  "race_callers_given_the_winners_effect": 69,
+  "race_callers_refused": 0,
+  "race_winners": 3,
+  "submissions_observed": 14,
+  "submissions_suppressed": 69,
+  "submissions_with_stale_version_approval": 0,
+  "submissions_without_approval": 0
+}

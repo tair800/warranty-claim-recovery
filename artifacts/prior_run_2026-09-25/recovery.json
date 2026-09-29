@@ -1,0 +1,603 @@
+{
+  "is_synthetic_corpus": true,
+  "notice": "Every figure here was measured over a synthetic corpus generated from a committed seed. It describes no real warranty programme and no manufacturer's policy, and the rates mean nothing outside this corpus.",
+  "what_this_is": "kill conditions F, G and M: the recoverable amount against the generator's ground truth at exact Decimal equality, the number of hold-out cases authorised whose truth is NOT_RECOVERABLE, and the number of cases authorised after their correction window had closed",
+  "graded_by": "tests/test_kill_criteria.py",
+  "holdout_false_recoveries": 0,
+  "holdout_not_recoverable_cases": 50,
+  "false_recoveries_whole_corpus": 0,
+  "why_false_recoveries_stand_alone": "a false recovery is a claim filed against a manufacturer on a basis that does not exist. There is no number of correct recoveries that pays for one, so it is never folded into an F1 or an accuracy. ADR-001 §5 G budgets zero of them on the hold-out.",
+  "cases_scored": 720,
+  "amount_mismatches": 0,
+  "amount_exact_match_rate": 1.0,
+  "amount_agreement": {
+    "numerator": 720,
+    "denominator": 720,
+    "rate": 1.0,
+    "defined": true
+  },
+  "amount_comparison": "exact Decimal equality including the currency, parsed from the string form in truth.json. No tolerance: every step in this system is exact and rounded once, so a discrepancy of a penny is a step applied in the wrong order rather than a rounding artefact, and a tolerance would hide exactly the defect the criterion exists to catch",
+  "amount_mismatch_examples": [],
+  "cases_with_a_closed_window": 54,
+  "resubmissions_after_window_closed": 0,
+  "holdout_false_denials": 5,
+  "holdout_review_rate": 0.135,
+  "splits": {
+    "holdout": {
+      "cases": 200,
+      "false_recoveries": 0,
+      "false_recovery_rate": {
+        "numerator": 0,
+        "denominator": 50,
+        "rate": 0.0,
+        "defined": true
+      },
+      "false_denials": 5,
+      "false_denial_rate": {
+        "numerator": 5,
+        "denominator": 110,
+        "rate": 0.045455,
+        "defined": true
+      },
+      "premature_write_offs": 15,
+      "premature_write_off_rate": {
+        "numerator": 15,
+        "denominator": 40,
+        "rate": 0.375,
+        "defined": true
+      },
+      "partial_recovery_accuracy": {
+        "numerator": 45,
+        "denominator": 50,
+        "rate": 0.9,
+        "defined": true
+      },
+      "review_rate": {
+        "numerator": 27,
+        "denominator": 200,
+        "rate": 0.135,
+        "defined": true
+      },
+      "outcome_agreement": {
+        "numerator": 156,
+        "denominator": 200,
+        "rate": 0.78,
+        "defined": true
+      },
+      "confusion_matrix": {
+        "rows_are_ground_truth": true,
+        "columns_are_system_outcomes": true,
+        "counts": {
+          "RECOVERABLE": {
+            "RECOVERABLE": 36,
+            "PARTIALLY_RECOVERABLE": 22,
+            "NOT_RECOVERABLE": 0,
+            "REVIEW": 2
+          },
+          "PARTIALLY_RECOVERABLE": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 45,
+            "NOT_RECOVERABLE": 5,
+            "REVIEW": 0
+          },
+          "NOT_RECOVERABLE": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 0,
+            "NOT_RECOVERABLE": 50,
+            "REVIEW": 0
+          },
+          "REVIEW": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 0,
+            "NOT_RECOVERABLE": 15,
+            "REVIEW": 25
+          }
+        }
+      },
+      "per_outcome": [
+        {
+          "outcome": "RECOVERABLE",
+          "support": 60,
+          "predicted": 36,
+          "correct": 36,
+          "precision": {
+            "numerator": 36,
+            "denominator": 36,
+            "rate": 1.0,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 36,
+            "denominator": 60,
+            "rate": 0.6,
+            "defined": true
+          },
+          "f1": 0.75,
+          "f1_defined": true
+        },
+        {
+          "outcome": "PARTIALLY_RECOVERABLE",
+          "support": 50,
+          "predicted": 67,
+          "correct": 45,
+          "precision": {
+            "numerator": 45,
+            "denominator": 67,
+            "rate": 0.671642,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 45,
+            "denominator": 50,
+            "rate": 0.9,
+            "defined": true
+          },
+          "f1": 0.769231,
+          "f1_defined": true
+        },
+        {
+          "outcome": "NOT_RECOVERABLE",
+          "support": 50,
+          "predicted": 70,
+          "correct": 50,
+          "precision": {
+            "numerator": 50,
+            "denominator": 70,
+            "rate": 0.714286,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 50,
+            "denominator": 50,
+            "rate": 1.0,
+            "defined": true
+          },
+          "f1": 0.833334,
+          "f1_defined": true
+        },
+        {
+          "outcome": "REVIEW",
+          "support": 40,
+          "predicted": 27,
+          "correct": 25,
+          "precision": {
+            "numerator": 25,
+            "denominator": 27,
+            "rate": 0.925926,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 25,
+            "denominator": 40,
+            "rate": 0.625,
+            "defined": true
+          },
+          "f1": 0.746269,
+          "f1_defined": true
+        }
+      ],
+      "amount_agreement": {
+        "numerator": 200,
+        "denominator": 200,
+        "rate": 1.0,
+        "defined": true
+      },
+      "amount_mismatches": 0,
+      "cases_with_a_closed_window": 15,
+      "resubmissions_after_window_closed": 0,
+      "not_recoverable_cases": 50
+    },
+    "development": {
+      "cases": 520,
+      "false_recoveries": 0,
+      "false_recovery_rate": {
+        "numerator": 0,
+        "denominator": 130,
+        "rate": 0.0,
+        "defined": true
+      },
+      "false_denials": 13,
+      "false_denial_rate": {
+        "numerator": 13,
+        "denominator": 286,
+        "rate": 0.045455,
+        "defined": true
+      },
+      "premature_write_offs": 39,
+      "premature_write_off_rate": {
+        "numerator": 39,
+        "denominator": 104,
+        "rate": 0.375,
+        "defined": true
+      },
+      "partial_recovery_accuracy": {
+        "numerator": 117,
+        "denominator": 130,
+        "rate": 0.9,
+        "defined": true
+      },
+      "review_rate": {
+        "numerator": 69,
+        "denominator": 520,
+        "rate": 0.132692,
+        "defined": true
+      },
+      "outcome_agreement": {
+        "numerator": 336,
+        "denominator": 520,
+        "rate": 0.646154,
+        "defined": true
+      },
+      "confusion_matrix": {
+        "rows_are_ground_truth": true,
+        "columns_are_system_outcomes": true,
+        "counts": {
+          "RECOVERABLE": {
+            "RECOVERABLE": 24,
+            "PARTIALLY_RECOVERABLE": 128,
+            "NOT_RECOVERABLE": 0,
+            "REVIEW": 4
+          },
+          "PARTIALLY_RECOVERABLE": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 117,
+            "NOT_RECOVERABLE": 13,
+            "REVIEW": 0
+          },
+          "NOT_RECOVERABLE": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 0,
+            "NOT_RECOVERABLE": 130,
+            "REVIEW": 0
+          },
+          "REVIEW": {
+            "RECOVERABLE": 0,
+            "PARTIALLY_RECOVERABLE": 0,
+            "NOT_RECOVERABLE": 39,
+            "REVIEW": 65
+          }
+        }
+      },
+      "per_outcome": [
+        {
+          "outcome": "RECOVERABLE",
+          "support": 156,
+          "predicted": 24,
+          "correct": 24,
+          "precision": {
+            "numerator": 24,
+            "denominator": 24,
+            "rate": 1.0,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 24,
+            "denominator": 156,
+            "rate": 0.153846,
+            "defined": true
+          },
+          "f1": 0.266666,
+          "f1_defined": true
+        },
+        {
+          "outcome": "PARTIALLY_RECOVERABLE",
+          "support": 130,
+          "predicted": 245,
+          "correct": 117,
+          "precision": {
+            "numerator": 117,
+            "denominator": 245,
+            "rate": 0.477551,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 117,
+            "denominator": 130,
+            "rate": 0.9,
+            "defined": true
+          },
+          "f1": 0.624,
+          "f1_defined": true
+        },
+        {
+          "outcome": "NOT_RECOVERABLE",
+          "support": 130,
+          "predicted": 182,
+          "correct": 130,
+          "precision": {
+            "numerator": 130,
+            "denominator": 182,
+            "rate": 0.714286,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 130,
+            "denominator": 130,
+            "rate": 1.0,
+            "defined": true
+          },
+          "f1": 0.833334,
+          "f1_defined": true
+        },
+        {
+          "outcome": "REVIEW",
+          "support": 104,
+          "predicted": 69,
+          "correct": 65,
+          "precision": {
+            "numerator": 65,
+            "denominator": 69,
+            "rate": 0.942029,
+            "defined": true
+          },
+          "recall": {
+            "numerator": 65,
+            "denominator": 104,
+            "rate": 0.625,
+            "defined": true
+          },
+          "f1": 0.751445,
+          "f1_defined": true
+        }
+      ],
+      "amount_agreement": {
+        "numerator": 520,
+        "denominator": 520,
+        "rate": 1.0,
+        "defined": true
+      },
+      "amount_mismatches": 0,
+      "cases_with_a_closed_window": 39,
+      "resubmissions_after_window_closed": 0,
+      "not_recoverable_cases": 130
+    }
+  },
+  "whole_corpus": {
+    "cases": 720,
+    "false_recoveries": 0,
+    "false_recovery_rate": {
+      "numerator": 0,
+      "denominator": 180,
+      "rate": 0.0,
+      "defined": true
+    },
+    "false_denials": 18,
+    "false_denial_rate": {
+      "numerator": 18,
+      "denominator": 396,
+      "rate": 0.045455,
+      "defined": true
+    },
+    "premature_write_offs": 54,
+    "premature_write_off_rate": {
+      "numerator": 54,
+      "denominator": 144,
+      "rate": 0.375,
+      "defined": true
+    },
+    "partial_recovery_accuracy": {
+      "numerator": 162,
+      "denominator": 180,
+      "rate": 0.9,
+      "defined": true
+    },
+    "review_rate": {
+      "numerator": 96,
+      "denominator": 720,
+      "rate": 0.133333,
+      "defined": true
+    },
+    "outcome_agreement": {
+      "numerator": 492,
+      "denominator": 720,
+      "rate": 0.683333,
+      "defined": true
+    },
+    "confusion_matrix": {
+      "rows_are_ground_truth": true,
+      "columns_are_system_outcomes": true,
+      "counts": {
+        "RECOVERABLE": {
+          "RECOVERABLE": 60,
+          "PARTIALLY_RECOVERABLE": 150,
+          "NOT_RECOVERABLE": 0,
+          "REVIEW": 6
+        },
+        "PARTIALLY_RECOVERABLE": {
+          "RECOVERABLE": 0,
+          "PARTIALLY_RECOVERABLE": 162,
+          "NOT_RECOVERABLE": 18,
+          "REVIEW": 0
+        },
+        "NOT_RECOVERABLE": {
+          "RECOVERABLE": 0,
+          "PARTIALLY_RECOVERABLE": 0,
+          "NOT_RECOVERABLE": 180,
+          "REVIEW": 0
+        },
+        "REVIEW": {
+          "RECOVERABLE": 0,
+          "PARTIALLY_RECOVERABLE": 0,
+          "NOT_RECOVERABLE": 54,
+          "REVIEW": 90
+        }
+      }
+    },
+    "per_outcome": [
+      {
+        "outcome": "RECOVERABLE",
+        "support": 216,
+        "predicted": 60,
+        "correct": 60,
+        "precision": {
+          "numerator": 60,
+          "denominator": 60,
+          "rate": 1.0,
+          "defined": true
+        },
+        "recall": {
+          "numerator": 60,
+          "denominator": 216,
+          "rate": 0.277778,
+          "defined": true
+        },
+        "f1": 0.434783,
+        "f1_defined": true
+      },
+      {
+        "outcome": "PARTIALLY_RECOVERABLE",
+        "support": 180,
+        "predicted": 312,
+        "correct": 162,
+        "precision": {
+          "numerator": 162,
+          "denominator": 312,
+          "rate": 0.519231,
+          "defined": true
+        },
+        "recall": {
+          "numerator": 162,
+          "denominator": 180,
+          "rate": 0.9,
+          "defined": true
+        },
+        "f1": 0.658537,
+        "f1_defined": true
+      },
+      {
+        "outcome": "NOT_RECOVERABLE",
+        "support": 180,
+        "predicted": 252,
+        "correct": 180,
+        "precision": {
+          "numerator": 180,
+          "denominator": 252,
+          "rate": 0.714286,
+          "defined": true
+        },
+        "recall": {
+          "numerator": 180,
+          "denominator": 180,
+          "rate": 1.0,
+          "defined": true
+        },
+        "f1": 0.833334,
+        "f1_defined": true
+      },
+      {
+        "outcome": "REVIEW",
+        "support": 144,
+        "predicted": 96,
+        "correct": 90,
+        "precision": {
+          "numerator": 90,
+          "denominator": 96,
+          "rate": 0.9375,
+          "defined": true
+        },
+        "recall": {
+          "numerator": 90,
+          "denominator": 144,
+          "rate": 0.625,
+          "defined": true
+        },
+        "f1": 0.75,
+        "f1_defined": true
+      }
+    ],
+    "amount_agreement": {
+      "numerator": 720,
+      "denominator": 720,
+      "rate": 1.0,
+      "defined": true
+    },
+    "amount_mismatches": 0,
+    "cases_with_a_closed_window": 54,
+    "resubmissions_after_window_closed": 0,
+    "not_recoverable_cases": 180
+  },
+  "outcome_divergences": [
+    {
+      "ground_truth": "RECOVERABLE",
+      "system": "PARTIALLY_RECOVERABLE",
+      "cases": 150,
+      "holdout": 22,
+      "development": 128,
+      "rejection_codes": [
+        "MISSING_INSTALL_PROOF",
+        "MISSING_SERIAL",
+        "OUTSIDE_WARRANTY_PERIOD",
+        "WRONG_FAILURE_CODE"
+      ],
+      "example_claim_ids": [
+        "kestrel-hydraulics-2019.1-c15",
+        "kestrel-hydraulics-2019.1-c16",
+        "kestrel-hydraulics-2019.1-c17",
+        "kestrel-hydraulics-2019.1-c18",
+        "kestrel-hydraulics-2019.1-c19"
+      ],
+      "example_reason_from_the_gate": "all 2 requirement(s) for MISSING_SERIAL are evidenced, the correction window for kestrel-hydraulics-2019.1 closes in 20 day(s), and 1200.00 GBP of 1250.00 GBP is recoverable",
+      "example_escalation": null
+    },
+    {
+      "ground_truth": "RECOVERABLE",
+      "system": "REVIEW",
+      "cases": 6,
+      "holdout": 2,
+      "development": 4,
+      "rejection_codes": [
+        "OUTSIDE_WARRANTY_PERIOD"
+      ],
+      "example_claim_ids": [
+        "kestrel-hydraulics-2019.1-c25",
+        "kestrel-hydraulics-2020.2-c25",
+        "calder-thermal-2019.2-c25",
+        "calder-thermal-2019.2-c26",
+        "calder-thermal-2020.1-c25"
+      ],
+      "example_reason_from_the_gate": null,
+      "example_escalation": "no clause of kestrel-hydraulics-2019.1 at policy version 2019.1 governing OUTSIDE_WARRANTY_PERIOD was among the 5 retrieved; nothing may be filed on an authority this system could not locate"
+    },
+    {
+      "ground_truth": "PARTIALLY_RECOVERABLE",
+      "system": "NOT_RECOVERABLE",
+      "cases": 18,
+      "holdout": 5,
+      "development": 13,
+      "rejection_codes": [
+        "DUPLICATE_CLAIM"
+      ],
+      "example_claim_ids": [
+        "kestrel-hydraulics-2019.1-c04",
+        "kestrel-hydraulics-2020.2-c04",
+        "kestrel-hydraulics-2021.3-c04",
+        "northfield-drives-2019.2-c04",
+        "northfield-drives-2020.4-c04"
+      ],
+      "example_reason_from_the_gate": "recovery identity kestrel-hydraulics-2019.1-c04:KH-VLV-6137-B:3828760 has already been settled for 476.00 GBP; resubmitting it would be a duplicate claim against Kestrel Hydraulics",
+      "example_escalation": null
+    },
+    {
+      "ground_truth": "REVIEW",
+      "system": "NOT_RECOVERABLE",
+      "cases": 54,
+      "holdout": 15,
+      "development": 39,
+      "rejection_codes": [
+        "MISSING_INSTALL_PROOF",
+        "MISSING_SERIAL"
+      ],
+      "example_claim_ids": [
+        "kestrel-hydraulics-2019.1-c10",
+        "kestrel-hydraulics-2019.1-c39",
+        "kestrel-hydraulics-2019.1-c40",
+        "kestrel-hydraulics-2020.2-c10",
+        "kestrel-hydraulics-2020.2-c39"
+      ],
+      "example_reason_from_the_gate": "rejection code MISSING_INSTALL_PROOF still has no evidence for REQ-INSTALL-CERTIFICATE; resubmitting now repeats the rejection this case exists to answer",
+      "example_escalation": null
+    }
+  ],
+  "outcome_divergence_note": "grouped by (ground truth, system) pair with the gate's own reason quoted. A systematic divergence and a scatter of unrelated mistakes produce the same confusion matrix and are not the same finding; this block is what tells them apart.",
+  "split_note": "the hold-out is fixed by ADR-001 §7's rule and was frozen before anything was scored against it. The development figures are published beside it so a reader can see whether the two populations behave alike: a system that scores far better on the split it was built against is a system that learned the split."
+}

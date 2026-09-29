@@ -1,0 +1,92 @@
+{
+  "cases_killed": 12,
+  "human_decisions_before_kill": 3,
+  "human_decisions_lost": 0,
+  "is_synthetic_corpus": true,
+  "kill_exit_status": 97,
+  "kill_points": [
+    "intake+0",
+    "requirements+0",
+    "deadline+0",
+    "eligibility+0",
+    "retrieval+1",
+    "retrieval+2",
+    "compose+0",
+    "gate+0",
+    "approval+1",
+    "submit+0",
+    "submit+1",
+    "write_off+0"
+  ],
+  "node_count": 10,
+  "node_divergences": 5,
+  "nodes_killed": [
+    "approval",
+    "compose",
+    "deadline",
+    "eligibility",
+    "gate",
+    "intake",
+    "requirements",
+    "retrieval",
+    "submit",
+    "write_off"
+  ],
+  "notice": "Durability measured over the committed synthetic corpus. The claims, policies and manufacturers do not exist and the manufacturer portal is a local mock; ADR-001 \u00a78 records that the idempotency guarantee is about this system's own effects.",
+  "people_asked_twice": 0,
+  "recorded_next": {
+    "approval+1": [
+      "approval"
+    ],
+    "compose+0": [
+      "retrieval"
+    ],
+    "deadline+0": [
+      "__start__"
+    ],
+    "eligibility+0": [
+      "__start__"
+    ],
+    "gate+0": [
+      "retrieval"
+    ],
+    "intake+0": [
+      "__start__"
+    ],
+    "requirements+0": [
+      "__start__"
+    ],
+    "retrieval+1": [
+      "retrieval"
+    ],
+    "retrieval+2": [
+      "retrieval"
+    ],
+    "submit+0": [
+      "approval"
+    ],
+    "submit+1": [
+      "submit"
+    ],
+    "write_off+0": [
+      "retrieval"
+    ]
+  },
+  "resumed_at": {
+    "approval+1": "approval",
+    "compose+0": "retrieval",
+    "deadline+0": "intake",
+    "eligibility+0": "intake",
+    "gate+0": "retrieval",
+    "intake+0": "intake",
+    "requirements+0": "intake",
+    "retrieval+1": "retrieval",
+    "retrieval+2": "retrieval",
+    "submit+0": "submit",
+    "submit+1": "submit",
+    "write_off+0": "retrieval"
+  },
+  "tool_invocations_completed_before_kill": 19,
+  "tool_invocations_observed": 46,
+  "tool_reexecutions": 0
+}

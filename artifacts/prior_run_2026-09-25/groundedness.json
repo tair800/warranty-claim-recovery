@@ -1,0 +1,51 @@
+{
+  "is_synthetic_corpus": true,
+  "notice": "Every figure here was measured over a synthetic corpus generated from a committed seed. It describes no real warranty programme and no manufacturer's policy, and the rates mean nothing outside this corpus.",
+  "what_this_is": "kill conditions H and I: every requirement this system reported satisfied carries a citation, and every cited span is present verbatim at the offsets it names in the document version it names",
+  "graded_by": "tests/test_kill_criteria.py",
+  "cases_scored": 720,
+  "requirements_assessed": 1440,
+  "requirements_marked_satisfied": 1230,
+  "requirements_satisfied_without_citation": 0,
+  "how_h_is_enforced": "domain.Requirement refuses to construct a SATISFIED requirement with no citation, so this count is zero by construction rather than by luck. It is measured anyway: the criterion asks what the running system produced, and a validator that was removed or bypassed would show up here rather than in a review of a diff.",
+  "citations_checked": 1230,
+  "unfaithful_citations": 0,
+  "unfaithful_citation_detail": [],
+  "how_i_is_checked": "document_text[start:end] == quote, against the document read from the corpus, using retrieval.citations.verify_citation — the same function the loader used to refuse a clause that was not where it said it was. A membership test would pass for a citation whose offsets had drifted onto a different section carrying the same template sentence, which is the failure this check exists to catch.",
+  "documents_available": 54,
+  "error_attribution": {
+    "rule": "a case whose outcome disagrees with the ground truth is a RETRIEVAL error when the governing clause was not among the k retrieved, and a COMPOSITION error when it was retrieved and the answer was still wrong. The two are exclusive and sum to the number of wrong cases.",
+    "cases_wrong": 228,
+    "retrieval_errors": 6,
+    "composition_errors": 222,
+    "sums_to_cases_wrong": true,
+    "retrieval_error_examples": [
+      "kestrel-hydraulics-2019.1-c25",
+      "kestrel-hydraulics-2020.2-c25",
+      "calder-thermal-2019.2-c25",
+      "calder-thermal-2019.2-c26",
+      "calder-thermal-2020.1-c25"
+    ],
+    "composition_error_examples": [
+      "kestrel-hydraulics-2019.1-c04",
+      "kestrel-hydraulics-2019.1-c10",
+      "kestrel-hydraulics-2019.1-c15",
+      "kestrel-hydraulics-2019.1-c16",
+      "kestrel-hydraulics-2019.1-c17"
+    ],
+    "composition_errors_citing_another_authority": 7,
+    "composition_errors_citing_another_authority_note": "a subset of the composition errors: the governing clause was retrieved and a different clause governing the same rejection code was cited instead. Reported separately because the remedy is a ranking change, whereas a composition error that cited the right clause and still came out wrong is a rule to look at."
+  },
+  "error_attribution_by_split": {
+    "holdout": {
+      "cases_wrong": 44,
+      "retrieval_errors": 2,
+      "composition_errors": 42
+    },
+    "development": {
+      "cases_wrong": 184,
+      "retrieval_errors": 4,
+      "composition_errors": 180
+    }
+  }
+}

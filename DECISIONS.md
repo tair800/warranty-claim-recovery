@@ -202,3 +202,97 @@ Recorded so it cannot look like an omission discovered later.
   `SKILL_MATRIX.md` names LangGraph's Postgres checkpointer as the deliberate answer to Temporal.
 - **No OAuth.** Project 4 is the sole home for authorization; this project enforces an approver token
   and a policy, not an identity provider.
+
+---
+
+## ADR-002 — The hold-out was computed once before three defects were found, and what that means
+
+**Status:** accepted · **Date:** 2026-09-28 · **ADR-001 stands unedited above.**
+
+### What happened
+
+On 2026-09-25 at 11:53 a build agent working on the evaluation lane ran the artifact builder in its
+default mode, which scores **both** splits. The session it ran in was then interrupted, and the
+resulting files were left on disk **uncommitted**. So the hold-out was computed once, by the
+pre-fix system, and never entered git history — which is why `git log` shows no score artifact
+before the scoring commit, and why this record exists: a clean history is not the same as a
+hold-out nobody has seen, and a reader is owed the difference.
+
+Those files are preserved verbatim in `artifacts/prior_run_2026-09-25/` rather than overwritten.
+Overwriting them would have left the history clean and the account false.
+
+### What the pre-fix run measured on the hold-out
+
+| | |
+|---|---|
+| recoverable amount against ground truth | **0 mismatches** over 720 cases, exact `Decimal` equality |
+| false recoveries (kill condition G) | **0** of 50 not-recoverable hold-out cases |
+| false denials | 5 of 200 hold-out cases |
+| review rate | 0.135 |
+| resubmissions after the window closed (M) | 0 of 54 closed-window cases |
+| retrieval recall@5, the system | **0.99** |
+| retrieval recall@5, `bm25_only` | **1.00** |
+| retrieval recall@5, `exact_code_lookup` | 0.85 |
+| retrieval recall@5, `dense_no_metadata` | 0.34 |
+| retrieval recall@5, `first_clause_of_policy` | 0.00 |
+| candidates surviving the filter per query | 15, every query; 0% at or below k |
+
+Its release gate read **FAILED on kill condition J**: the system cleared the 0.85 floor and was not
+strictly above `bm25_only`. Conditions A to E were not graded, because the durability and
+submission artifacts did not yet carry the keys the kill test reads.
+
+### Three defects found afterwards, and how each was found
+
+Each was found by reading the code or reasoning about the deployment, **not** by reading a score,
+and each is provable without reference to one. `PORTFOLIO_MASTER_SPEC.md` and this project's brief
+both allow exactly that class of fix after scoring, on condition that it is recorded — which is
+what this section is.
+
+1. **`case_version` was never incremented anywhere in the graph.** Found by searching for the
+   increment and finding none. Every case therefore sat at version zero forever, and "an approval
+   for the same case version" was satisfied trivially: a case re-priced after approval would still
+   have matched the approval of its old amount. **It affects durability and submission. It moves
+   no hold-out recovery or retrieval number.**
+2. **Cross-case duplicate prevention rested on a store with no persistence.** Found by reading the
+   plan of the deployed Key Value instance: Render's free Valkey has none, so any restart empties
+   every idempotency marker, and a second case carrying the same physical recovery would then file
+   it again. The durable backstop is `submission_record` with the recovery identity as its primary
+   key, migration `0002`. **It affects submission. It moves no hold-out recovery or retrieval
+   number.**
+3. **Retrieval could cite a withdrawn bulletin.** Found by reading the retrieval statement, which
+   filtered on programme and policy version only, and the loader's own note that nothing in the
+   package decided anything on `is_current`. Confirmed against the generator's construction rather
+   than against a score: **0 of 720 governing clauses point at a non-current document**, so
+   excluding non-current documents before ranking cannot remove a single correct answer — it can
+   only remove wrong ones.
+
+### Why the third fix cannot be tuning to pass J, stated before the final score
+
+This is the one that touches a retrieval number, so it is argued here rather than assumed.
+
+Kill condition J requires hold-out recall@5 to be **strictly above every baseline**, and on this
+hold-out `bm25_only` scored **1.00**. No system can be strictly above 1.00. The fix removes
+superseded candidates from the dense system's pool; at best it raises the system from 0.99 to 1.00,
+which is **equal** to the baseline and therefore still fails the criterion as ADR-001 wrote it.
+The fix is incapable of flipping J, which is the property that makes it safe to apply after J was
+seen to fail.
+
+### What was deliberately not changed after the hold-out was seen
+
+None of the following was touched, and none will be: the four baselines; kill condition J's
+wording or threshold; the query composition; the embedding model; `k`; the corpus; the hold-out
+membership; any gate rule; any money rule. A system that failed J because a lexical baseline
+saturated the task is **not** repaired by making the baseline weaker or the criterion softer, and
+doing either would be the precise failure this project's contract was written to make impossible.
+
+### What J failing would mean
+
+That on this synthetic corpus the retrieval task is **lexically trivial**: the rejection code's own
+vocabulary appears in the clause that governs it, so term matching alone finds the governing clause
+every time and embeddings add nothing measurable. It is the same class of lesson as project 7's —
+a task easier than the criterion assumed — reached by a different route. Project 7's F failed
+because its baseline ran the identical retriever; ADR-001 §6 was written to prevent exactly that,
+and did. J's baselines are genuinely different systems. One of them simply wins.
+
+That is a finding about the corpus and about when embeddings earn their place. It is not a finding
+the project may argue its way out of.

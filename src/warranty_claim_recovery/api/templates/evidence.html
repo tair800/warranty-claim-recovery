@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% from "_states.html" import corpus_missing, no_case, status_pill %}
+{% block title %}Evidence{% endblock %}
+
+{% block content %}
+{% if corpus_problem %}
+  {{ corpus_missing(corpus_problem) }}
+{% elif not case %}
+  {{ no_case() }}
+{% else %}
+
+<div class="panel">
+  {% with action = "/evidence", scoped = true %}{% include "_picker.html" %}{% endwith %}
+</div>
+
+<h2>What {{ case.record.claim.rejection_code.value }} demands</h2>
+<div class="panel">
+  <p class="note">
+    The requirement list belongs to the rejection code, not to the handler who picked the case up.
+    Two handlers asking for different evidence for the same code makes the recovery rate a property
+    of who was on shift. A requirement reported <code>SATISFIED</code> always carries a citation:
+    <code>domain.Requirement</code> refuses to be constructed without one, so "satisfied by nothing"
+    is impossible here rather than merely measured.
+  </p>
+  <table>
+    <thead>
+      <tr><th>requirement</th><th>status</th><th>what it asks for</th><th>clause that satisfies it</th></tr>
+    </thead>
+    <tbody>
+      {% for requirement in case.requirements %}
+        <tr>
+          <td class="mono">{{ requirement.requirement_id }}</td>
+          <td>{{ status_pill(requirement.status.value) }}</td>
+          <td>
+            {{ requirement.description }}
+            <div class="faint small" style="margin-top:6px">{{ requirement.detail }}</div>
+          </td>
+          <td class="mono">
+            {% if requirement.citation %}
+              {{ requirement.citation.clause_id }}<br>
+              <span class="faint">{{ requirement.citation.section }}</span><br>
+              <span class="faint">chars [{{ requirement.citation.start_offset }}, {{ requirement.citation.end_offset }})
+                of {{ requirement.citation.document_id }} @ {{ requirement.citation.policy_version }}</span>
+            {% else %}
+              <span class="faint">— none, and none is claimed</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="faint">No requirement was assessed for this case.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note small">
+    <strong>Adjudicated by this console, provisionally.</strong> The case machine's
+    <code>requirements</code> node is the authority and its output is not yet committed, so the
+    reading above asks one question of the claim's whole evidence bundle and applies the answer to
+    every requirement the code raised. It is coarse on purpose — the per-artefact mapping does not
+    exist in committed code and inventing it here would be writing that node in a file nobody grades
+    — and it errs towards <em>unmet</em>, because marking a requirement met that was not is kill
+    condition G and is budgeted at zero.
+  </p>
+</div>
+
+<h2>The evidence bundle the claim carries</h2>
+<div class="panel">
+  <table>
+    <thead><tr><th>evidence key</th><th>status</th></tr></thead>
+    <tbody>
+      {% for key, value in case.record.evidence | dictsort %}
+        <tr>
+          <td class="mono">{{ key }}</td>
+          <td>
+            {% if value == "PRESENT" %}<span class="pill ok">PRESENT</span>
+            {% elif value == "CONFLICTING" %}<span class="pill warn">CONFLICTING</span>
+            {% else %}<span class="pill bad">{{ value }}</span>{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="2" class="faint">This claim records no evidence bundle.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note small" style="margin-bottom:0">
+    <code>CONFLICTING</code> is not a worse <code>ABSENT</code>. Absent evidence is a request to a
+    technician; contradictory evidence is a decision a person has to make, and collapsing the two
+    sends the wrong person to look for the wrong thing.
+  </p>
+</div>
+
+<h2>The governing authority, offline</h2>
+<div class="panel">
+  {% if case.clause and case.citation %}
+    <dl class="kv">
+      <dt>clause</dt><dd>{{ case.clause.clause_id }}</dd>
+      <dt>section</dt><dd>{{ case.clause.section }}</dd>
+      <dt>document</dt><dd>{{ case.citation.document_id }} @ policy {{ case.citation.policy_version }}</dd>
+      <dt>offsets</dt><dd>[{{ case.citation.start_offset }}, {{ case.citation.end_offset }}) — {{ case.citation.quote | length }} characters</dd>
+      <dt>governs</dt><dd>{{ case.clause.governs | map(attribute="value") | join(", ") or "— context rather than authority" }}</dd>
+    </dl>
+    <blockquote class="quote">{{ case.citation.quote }}</blockquote>
+    <p class="note small">
+      Found by scanning this programme's <em>current</em> policy for the first clause whose
+      <code>governs</code> list names the rejection code — not by reading the generator's answer key,
+      which would make every citation on this page verify by construction and would be showing a
+      lookup rather than an authority. Withdrawn bulletins are excluded: a correct quote from a
+      superseded policy is still the wrong authority, and the manufacturer will say so.
+    </p>
+  {% else %}
+    <div class="state">
+      <strong>No clause in this programme's current policy governs this rejection code.</strong>
+      <p class="small">This console will not report a requirement as satisfied by nothing.</p>
+    </div>
+  {% endif %}
+</div>
+
+<h2>The dense stage, in pgvector</h2>
+<div class="panel">
+  <p class="note">
+    Embed the query, filter by manufacturer and policy version <em>before</em> ranking, rank with the
+    pgvector distance operator, return the top {{ k }}. It runs on request rather than on page load:
+    the first query of a process loads an ONNX session, and a screen whose first paint waits on that
+    is a screen a reviewer closes. Everything above this heading needed no database at all.
+  </p>
+
+  <form class="picker" method="get" action="/evidence" onsubmit="this.querySelector('button').setAttribute('aria-busy','true'); this.querySelector('button').textContent='Retrieving…';">
+    <input type="hidden" name="claim" value="{{ claim_id }}">
+    <input type="hidden" name="retrieve" value="true">
+    <button type="submit">Run retrieval</button>
+    <span class="faint small">embeds the query and queries PostgreSQL; a few hundred milliseconds warm, a few seconds cold</span>
+  </form>
+
+  {% if not retrieval_requested %}
+    <div class="state" style="margin-top:14px">
+      <strong>Not run on this page view.</strong>
+      <p class="small">Press <em>Run retrieval</em> to execute the dense stage against the live index.</p>
+    </div>
+  {% elif retrieval and retrieval.problem %}
+    <div class="state error" style="margin-top:14px">
+      <strong>The dense stage could not run.</strong>
+      <p class="small">
+        Reported fault: <code>{{ retrieval.problem }}</code>. Only the exception's type is shown;
+        the message would carry the host, the port and the user.
+      </p>
+      <p class="small faint">
+        Check <code>/healthz</code>. The requirement list and the governing clause above are
+        unaffected — they are read from the generated corpus.
+      </p>
+    </div>
+  {% elif retrieval and not retrieval.clauses %}
+    <div class="state" style="margin-top:14px">
+      <strong>The index returned nothing for this programme and policy version.</strong>
+      <p class="small">Run <code>make index</code> to embed and load the clause corpus.</p>
+    </div>
+  {% elif retrieval %}
+    <table style="margin-top:14px">
+      <thead>
+        <tr><th class="num">#</th><th class="num">distance</th><th>clause</th><th>span</th><th>verbatim?</th></tr>
+      </thead>
+      <tbody>
+        {% for hit in retrieval.clauses %}
+          <tr>
+            <td class="num">{{ hit.rank }}</td>
+            <td class="num">{{ "%.4f" | format(hit.distance) }}</td>
+            <td>
+              <span class="mono">{{ hit.clause.clause_id }}</span>
+              {% if case.clause and hit.clause.clause_id == case.clause.clause_id %}
+                <span class="pill ok">authority</span>
+              {% endif %}
+              <div class="faint small">{{ hit.clause.section }} · {{ hit.document_title }}</div>
+              <blockquote class="quote">{{ hit.clause.text }}</blockquote>
+            </td>
+            <td class="mono small">
+              [{{ hit.citation.start_offset }}, {{ hit.citation.end_offset }})<br>
+              <span class="faint">{{ hit.citation.document_id }}</span><br>
+              <span class="faint">@ {{ hit.citation.policy_version }}</span>
+            </td>
+            <td>
+              {% if hit.verified %}
+                <span class="pill ok">VERIFIED</span>
+              {% else %}
+                <span class="pill bad">UNFAITHFUL</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>The statement that ran</h3>
+    <pre class="sql">{{ retrieval.executed_statement }}</pre>
+    <p class="note small">
+      The literal SQL, parameter placeholders and all, carried back from the retriever rather than
+      rebuilt for display. Kill condition K greps this same string out of
+      <code>artifacts/pgvector.json</code> for the <code>&lt;=&gt;</code> operator, and a statement
+      reassembled for a screen is a statement that can differ from the one the system ran.
+    </p>
+    <dl class="kv">
+      <dt>query text</dt><dd>{{ retrieval.query }}</dd>
+      {% for stage, ms in retrieval.timings_ms | dictsort %}
+        <dt>{{ stage }} ms</dt><dd>{{ ms }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="note small" style="margin-bottom:0">
+      Timings are diagnostic and nothing scores them — they read a clock, and nothing graded in this
+      project may. The recall figures on the evaluation screen come from the evaluation harness and
+      from <code>artifacts/retrieval.json</code>, not from this query.
+    </p>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
