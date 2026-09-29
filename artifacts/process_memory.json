@@ -1,0 +1,170 @@
+{
+  "is_synthetic_corpus": true,
+  "what_this_is": "the resident memory of the whole console process \u2014 web server, database client, encoder and graph runtime \u2014 measured while it serves every screen, rather than the encoder's footprint alone",
+  "why": "encoder_memory.json measured the model at 285MB. A model is not a deployment; project 7's container was killed because nobody measured what actually runs",
+  "free_tier_mb": 512,
+  "safe_fraction": 0.6,
+  "server": {
+    "peak_mb": 263.3,
+    "started_mb": 78.0,
+    "samples": [
+      {
+        "step": "started, no request served",
+        "rss_mb": 78.0
+      },
+      {
+        "step": "case screen",
+        "path": "/",
+        "status": 200,
+        "rss_mb": 86.5
+      },
+      {
+        "step": "case screen with a claim",
+        "path": "/?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 86.5
+      },
+      {
+        "step": "recovery calculation",
+        "path": "/recovery?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 86.7
+      },
+      {
+        "step": "evidence with live retrieval (encoder)",
+        "path": "/evidence?claim=kestrel-hydraulics-2019.1-c15&retrieve=true",
+        "status": 200,
+        "rss_mb": 261.9
+      },
+      {
+        "step": "evaluation",
+        "path": "/evaluation",
+        "status": 200,
+        "rss_mb": 262.4
+      },
+      {
+        "step": "audit",
+        "path": "/audit?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "case JSON",
+        "path": "/api/case/kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "readiness",
+        "path": "/healthz",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "case screen",
+        "path": "/",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "case screen with a claim",
+        "path": "/?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "recovery calculation",
+        "path": "/recovery?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 262.5
+      },
+      {
+        "step": "evidence with live retrieval (encoder)",
+        "path": "/evidence?claim=kestrel-hydraulics-2019.1-c15&retrieve=true",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "evaluation",
+        "path": "/evaluation",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "audit",
+        "path": "/audit?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "case JSON",
+        "path": "/api/case/kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "readiness",
+        "path": "/healthz",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "case screen",
+        "path": "/",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "case screen with a claim",
+        "path": "/?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "recovery calculation",
+        "path": "/recovery?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.2
+      },
+      {
+        "step": "evidence with live retrieval (encoder)",
+        "path": "/evidence?claim=kestrel-hydraulics-2019.1-c15&retrieve=true",
+        "status": 200,
+        "rss_mb": 263.3
+      },
+      {
+        "step": "evaluation",
+        "path": "/evaluation",
+        "status": 200,
+        "rss_mb": 263.3
+      },
+      {
+        "step": "audit",
+        "path": "/audit?claim=kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.3
+      },
+      {
+        "step": "case JSON",
+        "path": "/api/case/kestrel-hydraulics-2019.1-c15",
+        "status": 200,
+        "rss_mb": 263.3
+      },
+      {
+        "step": "readiness",
+        "path": "/healthz",
+        "status": 200,
+        "rss_mb": 263.3
+      }
+    ]
+  },
+  "graph_runtime_probe": {
+    "baseline": 16.8,
+    "with_encoder": 230.0,
+    "with_graph_runtime": 263.1
+  },
+  "graph_runtime_increment_mb": 33.1,
+  "projected_deployed_peak_mb": 296.4,
+  "fits_free_tier": true,
+  "fits_with_headroom": true
+}
