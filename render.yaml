@@ -66,14 +66,19 @@ services:
       - key: WCR_DATABASE_URL
         sync: false
 
-      # Redis: a free Render Key Value instance in the same region, wired by reference rather than
+      # The Key Value store: a free Render Key Value instance in the same region, running **Valkey
+      # 8.1.10** — which speaks the Redis protocol, and is not Redis. Wired by reference rather than
       # by value. `fromService` resolves to its internal connection string at deploy time, so no
       # credential is written here, none is pasted into the dashboard, and the two cannot drift.
       #
       # It is load-bearing rather than decorative — the case queue, its leases and the submission
       # idempotency state live in it — and with it unreachable the queue fails closed, which is kill
-      # condition L. A public instance with no Redis therefore leases nothing and submits nothing,
-      # and `/healthz` says which of the two dependencies is missing.
+      # condition L. A public instance with no Key Value store therefore leases nothing and submits
+      # nothing, and `/healthz` says which of the two dependencies is missing.
+      #
+      # It is **not** where "has this been filed" is recorded. With no persistence a restart empties
+      # it; the durable record is `submission_record` in PostgreSQL, keyed by recovery identity, so a
+      # marker Valkey has forgotten cannot let a second case file the same recovery.
       #
       # The instance is created with `maxmemoryPolicy: noeviction` and that is not a default worth
       # overriding. Under the eviction policies Render recommends for caches, a full instance
@@ -90,8 +95,9 @@ services:
 
   # The Key Value instance itself, declared here so the blueprint is the whole topology rather than
   # most of it. Free plan, no persistence — which is the honest shape rather than a limitation
-  # tolerated: this project's durability story is the LangGraph checkpointer in PostgreSQL, and a
-  # Redis that survived a restart would hide the fact that a lease is recoverable without it.
+  # tolerated: this project's durability story is the LangGraph checkpointer and the submission
+  # record in PostgreSQL, and a store that survived a restart would hide the fact that a lease is
+  # recoverable without it.
   # `docker-compose.yml` runs the local one with persistence off for the same reason, so the local
   # and the deployed failure modes are the same failure mode.
   #

@@ -167,15 +167,20 @@ wrong one here, because a total that disagrees with the arithmetic on the invoic
 
 ---
 
-## 4. Redis: the queue, the leases, and failing closed
+## 4. The Key Value store: the queue, the leases, and failing closed
 
-Redis is load-bearing rather than decorative. It holds the case work queue, the lease that says which
-worker owns a case right now, and the submission idempotency state.
+**Named exactly.** In production this is Render Key Value running **Valkey 8.1.10**, which speaks the
+Redis protocol; locally and in CI it is `redis:7-alpine`. The code reaches either through the `redis`
+client. It is called Valkey below wherever the deployed instance is meant.
+
+It is load-bearing rather than decorative. It holds the case work queue, the lease that says which
+worker owns a case right now, and the **fast-path** submission claim that decides which of several
+racing callers goes on.
 
 ```mermaid
 sequenceDiagram
     participant W1 as worker-1
-    participant R as Redis
+    participant R as Valkey
     participant W2 as worker-2
     participant PG as PostgreSQL checkpointer
 
@@ -206,16 +211,55 @@ long enough for its lease to expire would, on waking, release a lease another wo
 two workers would run the same case with no error anywhere. The lease is ownership, so every
 operation on it has to prove ownership.
 
-**With Redis unreachable the queue fails closed.** `CaseQueue` raises `RedisUnavailableError` rather
+**With the store unreachable the queue fails closed.** `CaseQueue` raises `RedisUnavailableError` rather
 than degrading to an in-process lock or to no lock at all. That is kill condition L: under failure
 injection, zero double-leases and zero submissions. The tempting alternative — carry on without
 leases, since the checkpointer is the real durability story — was rejected because it converts an
 outage into two workers submitting the same recovery to a manufacturer, which is the failure with an
 invoice attached.
 
-**The durability story is PostgreSQL, not Redis.** The local Redis runs with no persistence at all,
-deliberately: a Redis that survived a restart would hide the fact that a case is recoverable from the
-checkpoint alone.
+**The durability story is PostgreSQL, not the Key Value store.** Both the local Redis and the
+deployed Valkey run with no persistence, deliberately: a store that survived a restart would hide the
+fact that a case is recoverable from the checkpoint alone.
+
+**And so the store is not where "has this been filed" is recorded.** An earlier version kept that
+answer only in the fast-path claim, and the deployment made the flaw concrete: a Valkey restart
+empties every claim, and the corpus carries claims that reach the system twice under different case
+identifiers for the same physical recovery. The second case would then have won the claim and filed
+again. The answer now lives in `submission_record` in PostgreSQL, with the recovery identity as its
+primary key:
+
+```mermaid
+sequenceDiagram
+    participant C as caller
+    participant V as Valkey (fast path)
+    participant PG as PostgreSQL submission_record
+    participant P as portal (mock)
+
+    C->>V: claim_once(identity) — SET NX
+    V-->>C: won
+    C->>PG: INSERT ... ON CONFLICT DO NOTHING (state CLAIMED)
+    alt the identity is new
+        PG-->>C: inserted
+        C->>P: file(request)
+        alt the portal answers
+            P-->>C: receipt
+            C->>PG: state FILED, effect_id
+            C->>V: record_effect
+        else the answer is lost (timeout)
+            C->>PG: state AMBIGUOUS — never retransmitted
+        end
+    else already FILED (Valkey forgot after a restart)
+        PG-->>C: the existing effect — returned as a duplicate, nothing filed
+    else CLAIMED or AMBIGUOUS
+        PG-->>C: reconciliation required — nothing filed on top of it
+    end
+```
+
+**The guarantee is one business effect per recovery identity — effectively-once — and not
+exactly-once transport.** A request can leave and its answer be lost on the way back; nothing on
+this side can know whether it arrived. So a transmission whose outcome is unknown is marked
+`AMBIGUOUS` and left for reconciliation against the portal, and it is never sent a second time.
 
 ---
 
@@ -255,15 +299,25 @@ A criterion that cannot fail is not counted as a pass here.
 
 ```mermaid
 flowchart LR
-    A["N concurrent workers,<br/>one recovery identity<br/>claim_id:part_number:serial"] --> B["SubmissionGuard.claim_once()<br/><i>atomic, in Redis</i>"]
-    B -->|true, exactly one caller| C["submit, then<br/>record_effect(identity, effect_id)"]
+    A["N concurrent workers,<br/>one recovery identity<br/>claim_id:part_number:serial"] --> B["SubmissionGuard.claim_once()<br/><i>atomic SET NX, in Valkey — fast path</i>"]
+    B -->|true, one caller| P["SubmissionRecords.claim()<br/><i>INSERT on the primary key,<br/>in PostgreSQL — durable</i>"]
     B -->|false, every other caller| D["read effect_for(identity)<br/>and return that same effect"]
-    C --> E["exactly one effect<br/>per identity"]
+    P -->|new identity| C["portal.file, then<br/>state FILED + record_effect"]
+    P -->|already FILED| D2["return the existing effect;<br/>file nothing"]
+    P -->|CLAIMED / AMBIGUOUS| R["reconciliation required;<br/>file nothing"]
+    C --> E["at most one business effect<br/>per identity"]
     D --> E
+    D2 --> E
+    R --> E
 ```
 
+The Valkey claim alone would be enough under concurrency and is not enough across a restart: the
+deployed instance has no persistence, so a restart forgets every claim. The PostgreSQL insert is what
+makes a forgotten claim harmless.
+
 Kill condition E races at least sixteen concurrent attempts per identity and requires exactly one
-effect and zero duplicates. The identity is claim plus part plus serial rather than the claim alone,
+effect and zero duplicates — one business effect, which is a different claim from exactly-once
+transport, and the only one this system makes. The identity is claim plus part plus serial rather than the claim alone,
 because one claim may legitimately be resubmitted for a different part after a partial adjudication —
 keying on the claim would refuse that second, correct submission as a duplicate, which is a different
 way of losing the same money.
@@ -281,7 +335,7 @@ flowchart LR
         PG["PostgreSQL 16 + pgvector<br/>clauses, cases, audit,<br/>LangGraph checkpoints"]
     end
     subgraph Upstash["Upstash Free"]
-        RD["Redis<br/>queue, leases,<br/>idempotency state"]
+        RD["Render Key Value — Valkey 8.1.10<br/>queue, leases, fast-path claim<br/>(no persistence, noeviction)"]
     end
     APP -->|direct endpoint,<br/>not the pooler| PG
     APP --> RD

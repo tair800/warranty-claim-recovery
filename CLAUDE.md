@@ -66,11 +66,24 @@ Warranty policy clauses and service bulletins, chunked, embedded, stored in a `v
 retrieved with the pgvector distance operator and filtered by manufacturer and policy version
 **before** ranking. A citation is a verbatim span plus its offsets into the document version it names.
 
-### 2.4 Redis
+### 2.4 The Key Value store — Valkey in production, Redis locally
 
-Load-bearing, not decorative: the case work queue, its **leases**, and submission idempotency state.
-A worker leases a case; if it dies the lease expires and another worker resumes from the checkpoint.
-With Redis gone the queue **fails closed** — kill condition L.
+**Name it exactly.** The deployed store is Render Key Value running **Valkey 8.1.10**, which speaks
+the Redis protocol; the local and CI store is `redis:7-alpine`. The code talks to either through the
+`redis` client and the protocol they share. Never write "Redis" about the deployed instance: it is
+Valkey, and a reader checking the claim would find otherwise.
+
+Load-bearing, not decorative: the case work queue, its **leases**, and the **fast-path** submission
+claim that serialises concurrent callers. A worker leases a case; if it dies the lease expires and
+another worker resumes from the checkpoint. With the store gone the queue **fails closed** — kill
+condition L.
+
+**It is not the source of truth for "has this been filed".** The deployed instance has **no
+persistence** and `maxmemory-policy noeviction`: a restart empties it, and a full instance refuses
+writes rather than evicting. The durable answer is `submission_record` in PostgreSQL, whose primary
+key is the recovery identity (migration `0002`), so a key the store has forgotten cannot let a
+second case file the same recovery. Valkey decides which of the racing callers goes on; PostgreSQL
+decides whether anybody ever filed it.
 
 ---
 
@@ -137,20 +150,27 @@ make evidence    the full chain, and what CI runs
 
 ## 6. Deployment shape
 
-Render Free (Docker, Frankfurt) + Neon Free PostgreSQL with pgvector + Upstash Free Redis.
-The blueprint named DigitalOcean App Platform; it has no free tier for a web service and no payment
-authorisation exists. ADR-001 §3 records the divergence.
+Render Free (Docker, Frankfurt) + **Neon Free PostgreSQL 16.15 with pgvector 0.8.0** on the direct
+endpoint + **Render Key Value Free, Valkey 8.1.10, `noeviction`, no persistence**, reached over the
+private network and wired into `render.yaml` by `fromService` rather than a pasted value. The
+blueprint named DigitalOcean App Platform; it has no free tier for a web service and no payment
+authorisation exists. ADR-001 §3 records the divergence. (An earlier draft of this file named Upstash
+for the Key Value store; Upstash was never used — it would have needed a login, and Render's own
+free Key Value tier did not.)
 
-**Measure the encoder's resident memory before choosing the topology.** Project 7 shipped a
-multilingual model with a 250,000-token vocabulary onto a 512MB instance and the container was killed
-on every query. This corpus is English-only, so a small English encoder is the right default — but
-the number is measured and recorded before it is relied on, not assumed.
+**Measure the process, not the model, before trusting the topology.** Project 7 shipped a
+multilingual model with a 250,000-token vocabulary onto a 512MB instance and the container was
+killed on every query. The encoder here was measured first (`artifacts/encoder_memory.json`, 285MB),
+and then the whole console process serving every screen with the encoder and the graph runtime
+loaded (`artifacts/process_memory.json`, projected peak 296MB of 512MB). The second number is the one
+a container is killed on.
 
 ---
 
 ## 7. Current integrations
 
 - **PostgreSQL 16 + pgvector** — the store, the vector index, and the LangGraph checkpointer.
-- **Redis** — work queue, leases, submission idempotency. Load-bearing.
+- **Valkey 8.1.10 (production) / Redis 7 (local, CI)** — work queue, leases, fast-path submission
+  claim. Load-bearing, and not the source of truth for what has been filed; see §2.4.
 - **fastembed, local ONNX** — English-only encoder, no network call at query time.
 - **No model provider.** `WCR_LLM_API_KEY` has no default and the abstractive arm **raises**.
